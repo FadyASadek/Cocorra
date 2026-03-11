@@ -1,0 +1,6 @@
+@Cocorra.API_HostAddress = http://localhost:5198
+
+GET {{Cocorra.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

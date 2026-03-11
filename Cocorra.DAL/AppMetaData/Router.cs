@@ -1,0 +1,46 @@
+﻿namespace Cocorra.DAL.AppMetaData
+{
+    public static class Router
+    {
+        public const string Root = "Api";
+        public const string Version = "V1";
+        public const string Rule = Root + "/" + Version + "/";
+
+        public static class AuthenticationRouting
+        {
+            public const string Prefix = Rule + "Authentication";
+            public const string Register = Prefix + "/Register";
+            public const string Login = Prefix + "/Login";
+        }
+
+        public static class AdminRouting
+        {
+            public const string Prefix = Rule + "Admin";
+
+            public const string GetAll = Prefix + "/Users";               // GET
+            public const string GetById = Prefix + "/User/{id}";          // GET
+            public const string Update = Prefix + "/User/{id}";           // PUT
+            public const string Delete = Prefix + "/User/{id}";           // DELETE           
+            public const string ChangeStatus = Prefix + "/User/ChangeStatus/{id}"; // PUT
+
+            public const string ResetPassword = Prefix + "/ResetPassword/{id}"; // POST
+            public const string Stats = Prefix + "/Dashboard/Stats";      // GET
+        }
+        public static class RolesRouting
+        {
+            public const string Prefix = Rule + "Roles";
+            public const string GetRoles = Prefix + "/List";               // GET
+            public const string GetRoleById = Prefix + "/{id}";            // GET
+            public const string Create = Prefix + "/Create";               // POST
+            public const string Update = Prefix + "/Update";               // PUT
+            public const string Delete = Prefix + "/Delete/{id}";          // DELETE
+            public const string ManageUserRoles = Prefix + "/ManageUser";  // POST
+            public const string GetUsersInRole = Prefix + "/Users/{roleName}"; // GET
+        }
+        public static class RoomRouting
+        {
+            public const string Prefix = Rule + "Room";
+            public const string Create = Prefix + "/Create";               // POST
+        }
+    }
+}
