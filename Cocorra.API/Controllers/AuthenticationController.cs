@@ -62,5 +62,15 @@ namespace Cocorra.API.Controllers
             var result = await _authServices.ForgotPasswordAsync(dto);
             return Ok(result);
         }
+        [Authorize]
+        [HttpPut("update-fcm-token")]
+        public async Task<IActionResult> UpdateFcmToken([FromBody] string fcmToken)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+
+            var result = await _authServices.UpdateFcmTokenAsync(userId, fcmToken);
+            return StatusCode((int)result.StatusCode, result);
+        }
     }
 }

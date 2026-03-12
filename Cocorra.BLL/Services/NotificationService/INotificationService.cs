@@ -4,7 +4,8 @@ using System.Text;
 
 namespace Cocorra.BLL.Services.NotificationService
 {
-    internal interface INotificationService
+    public interface IPushNotificationService
     {
+        Task SendPushNotificationAsync(Guid receiverId, string title, string body, string? chatFriendId = null);
     }
 }

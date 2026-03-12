@@ -1,8 +1,10 @@
-﻿using Cocorra.DAL.DTOS.ChatDto;
+﻿using Cocorra.BLL.Services.NotificationService;
+using Cocorra.DAL.DTOS.ChatDto;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.MessageRepository;
 using Core.Base;
+using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,12 +16,18 @@ namespace Cocorra.BLL.Services.ChatService
     {
         private readonly IFriendRepository _friendRepo;
         private readonly IMessageRepository _messageRepo;
+        private readonly IPushNotificationService _pushService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public ChatService(IFriendRepository friendRepo, IMessageRepository messageRepo)
+        // 👇 تم تحديث الـ Constructor لحقن الـ Push Service والـ UserManager 👇
+        public ChatService(IFriendRepository friendRepo, IMessageRepository messageRepo, IPushNotificationService pushService, UserManager<ApplicationUser> userManager)
         {
             _friendRepo = friendRepo;
             _messageRepo = messageRepo;
+            _pushService = pushService;
+            _userManager = userManager;
         }
+
         public async Task<Response<IEnumerable<MessageDto>>> GetChatHistoryAsync(Guid currentUserId, Guid friendId, int pageNumber, int pageSize)
         {
             // 1. نتأكد إنهم أصدقاء أصلاً
@@ -45,7 +53,7 @@ namespace Cocorra.BLL.Services.ChatService
 
         public async Task<Response<MessageDto>> SaveMessageAsync(Guid senderId, Guid receiverId, string content)
         {
-            // 1. حماية: هل هما أصدقاء؟ (عشان لو حد حاول يبعت API بـ Postman لواحد مش صاحبه)
+            // 1. حماية: هل هما أصدقاء؟ 
             var friendship = await _friendRepo.GetFriendshipRelationAsync(senderId, receiverId);
             if (friendship == null || friendship.Status != Cocorra.DAL.Enums.FriendRequestStatus.Accepted)
                 return BadRequest<MessageDto>("You can only send messages to confirmed friends.");
@@ -71,8 +79,16 @@ namespace Cocorra.BLL.Services.ChatService
                 CreatedAt = message.CreatedAt
             };
 
+            // 👇 3. إرسال الإشعار (Push Notification) للطرف التاني 👇
+            var sender = await _userManager.FindByIdAsync(senderId.ToString());
+            string senderName = sender != null ? $"{sender.FirstName} {sender.LastName}" : "New Message";
+
+            // استخدمنا Discard (_) عشان الإشعار يتبعت في الخلفية من غير ما يعطل سرعة الشات
+            _ = _pushService.SendPushNotificationAsync(receiverId, senderName, content, senderId.ToString());
+
             return Success(dto);
         }
+
         // 1. تعديل دالة لستة الأصدقاء بالكامل
         public async Task<Response<IEnumerable<ChatFriendDto>>> GetChatFriendsListAsync(Guid currentUserId)
         {

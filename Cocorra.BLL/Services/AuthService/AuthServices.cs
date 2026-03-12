@@ -209,5 +209,15 @@ namespace Cocorra.BLL.Services.AuthServices
 
             return token;
         }
+        public async Task<Response<string>> UpdateFcmTokenAsync(Guid userId, string fcmToken)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return BadRequest<string>("User not found.");
+
+            user.FcmToken = fcmToken;
+            await _userManager.UpdateAsync(user);
+
+            return Success("FCM Token updated successfully.");
+        }
     }
 }

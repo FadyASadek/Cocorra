@@ -14,5 +14,6 @@ namespace Cocorra.BLL.Services.Auth
         Task<Response<string>> RegisterAsync(RegisterDto dto);
         Task<Response<string>> SubmitMbtiAsync(Guid userId, SubmitMbtiDto dto);
         Task<Response<string>> ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task<Response<string>> UpdateFcmTokenAsync(Guid userId, string fcmToken);
     }
 }

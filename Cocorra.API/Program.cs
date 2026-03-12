@@ -2,7 +2,9 @@ using Cocorra.API.Hubs;
 using Cocorra.BLL.Services.AdminService;
 using Cocorra.BLL.Services.Auth;
 using Cocorra.BLL.Services.AuthServices;
+using Cocorra.BLL.Services.ChatService;
 using Cocorra.BLL.Services.FriendService;
+using Cocorra.BLL.Services.NotificationService;
 using Cocorra.BLL.Services.RolesService;
 using Cocorra.BLL.Services.RoomService;
 using Cocorra.BLL.Services.Upload;
@@ -10,6 +12,7 @@ using Cocorra.DAL.Data;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.GenericRepository;
+using Cocorra.DAL.Repository.MessageRepository;
 using Cocorra.DAL.Repository.NotificationRepository;
 using Cocorra.DAL.Repository.RoomRepository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -82,6 +85,10 @@ builder.Services.AddScoped<IRolesService, RolesService>();
 builder.Services.AddScoped<IFriendRepository, FriendRepository>();
 builder.Services.AddScoped<IFriendService, FriendService>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddScoped<IChatService,ChatService>();
+builder.Services.AddScoped<IMessageRepository,MessageRepository>();
+
 builder.Services.AddScoped(typeof(IGenericRepositoryAsync<>), typeof(GenericRepositoryAsync<>));
 #endregion
 
