@@ -42,7 +42,6 @@ namespace Cocorra.BLL.Services.AuthServices
             _configuration = configuration;
         }
 
-        // 1. التسجيل: بيستقبل الداتا + الصوت، ويكريت اليوزر كـ Pending، ومبيرجعش توكن
         public async Task<Response<string>> RegisterAsync(RegisterDto dto)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -70,7 +69,7 @@ namespace Cocorra.BLL.Services.AuthServices
                         FirstName = dto.FirstName!,
                         LastName = dto.LastName!,
                         Age = dto.Age,
-                        Status = UserStatus.Pending, // إجباري Pending
+                        Status = UserStatus.Pending, 
                         VoiceVerificationPath = voicePath
                     };
 
@@ -91,7 +90,6 @@ namespace Cocorra.BLL.Services.AuthServices
 
                     await transaction.CommitAsync();
 
-                    // التعديل المهم: بنرجع رسالة بدل التوكن عشان الديزاين (We usually respond within 24 hours)
                     return Created("Registration successful. Your account is pending verification. We usually respond within 24 hours.");
                 }
                 catch (Exception ex)
@@ -103,7 +101,6 @@ namespace Cocorra.BLL.Services.AuthServices
             });
         }
 
-        // 2. تسجيل الدخول: زي ما هو ممتاز ومبيسمحش للـ Pending يدخل
         public async Task<Response<AuthModel>> LoginAsync(LoginDto dto)
         {
             var user = await _userManager.FindByEmailAsync(dto.Email!);
@@ -154,7 +151,6 @@ namespace Cocorra.BLL.Services.AuthServices
             return BadRequest<string>("Failed to update MBTI.");
         }
 
-        // 4. الدالة الجديدة: نسيت كلمة السر (عشان الديزاين)
         public async Task<Response<string>> ForgotPasswordAsync(ForgotPasswordDto dto)
         {
             var user = await _userManager.FindByEmailAsync(dto.Email!);
@@ -163,13 +159,11 @@ namespace Cocorra.BLL.Services.AuthServices
 
             var token = await _userManager.GeneratePasswordResetTokenAsync(user);
 
-            // هنا في المستقبل هتحط كود يبعت إيميل لليوزر بالـ token ده 
-            // (emailService.SendResetEmail(user.Email, token))
+        
 
             return Success("If your email is registered, you will receive a password reset link shortly.");
         }
 
-        // --- Helper Methods ---
         private void DeleteFile(string? path)
         {
             if (!string.IsNullOrEmpty(path))

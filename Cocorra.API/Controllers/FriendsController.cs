@@ -44,16 +44,6 @@ namespace Cocorra.API.Controllers
             return Ok(result);
         }
 
-        [HttpGet("my-notifications")]
-        public async Task<IActionResult> GetMyNotifications()
-        {
-            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(currentUserIdString, out Guid currentUserId)) return Unauthorized();
-
-            var result = await _friendService.GetMyNotificationsAsync(currentUserId);
-            return StatusCode((int)result.StatusCode, result);
-        }
-
         [HttpPost("respond-request/{senderId:guid}")]
         public async Task<IActionResult> RespondRequest(Guid senderId, [FromQuery] bool accept)
         {
@@ -71,16 +61,6 @@ namespace Cocorra.API.Controllers
             if (!Guid.TryParse(currentUserIdString, out Guid currentUserId)) return Unauthorized();
 
             var result = await _friendService.RemoveFriendOrCancelRequestAsync(currentUserId, targetId);
-            return StatusCode((int)result.StatusCode, result);
-        }
-
-        [HttpPut("read-notification/{notificationId:guid}")]
-        public async Task<IActionResult> MarkNotificationRead(Guid notificationId)
-        {
-            var currentUserIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!Guid.TryParse(currentUserIdString, out Guid currentUserId)) return Unauthorized();
-
-            var result = await _friendService.MarkNotificationAsReadAsync(notificationId, currentUserId);
             return StatusCode((int)result.StatusCode, result);
         }
     }

@@ -1,11 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Cocorra.DAL.DTOS.NotificationDto;
+using Core.Base;
+
 
 namespace Cocorra.BLL.Services.NotificationService
 {
-    public interface IPushNotificationService
+    public interface INotificationService
     {
-        Task SendPushNotificationAsync(Guid receiverId, string title, string body, string? chatFriendId = null);
+        Task<Response<IEnumerable<NotificationResponseDto>>> GetMyNotificationsAsync(Guid userId);
+        Task<Response<string>> MarkNotificationAsReadAsync(Guid notificationId, Guid userId);
     }
 }

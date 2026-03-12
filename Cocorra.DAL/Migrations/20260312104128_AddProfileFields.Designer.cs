@@ -4,6 +4,7 @@ using Cocorra.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Cocorra.DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312104128_AddProfileFields")]
+    partial class AddProfileFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -147,8 +150,7 @@ namespace Cocorra.DAL.Migrations
 
                     b.HasIndex("ReceiverId");
 
-                    b.HasIndex("SenderId", "ReceiverId")
-                        .IsUnique();
+                    b.HasIndex("SenderId");
 
                     b.ToTable("FriendRequests");
                 });
@@ -181,9 +183,9 @@ namespace Cocorra.DAL.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReceiverId", "IsRead");
+                    b.HasIndex("ReceiverId");
 
-                    b.HasIndex("SenderId", "ReceiverId", "CreatedAt");
+                    b.HasIndex("SenderId");
 
                     b.ToTable("Messages");
                 });

@@ -1,50 +1,54 @@
-﻿using Cocorra.DAL.Models;
-using Microsoft.AspNetCore.Identity;
+﻿using Cocorra.DAL.DTOS.NotificationDto;
+using Cocorra.DAL.Repository.NotificationRepository;
+using Core.Base;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.NotificationService
 {
-    public class PushNotificationService : IPushNotificationService
+    public class NotificationService : ResponseHandler, INotificationService
     {
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly INotificationRepository _notificationRepo;
 
-        public PushNotificationService(UserManager<ApplicationUser> userManager)
+        public NotificationService(INotificationRepository notificationRepo)
         {
-            _userManager = userManager;
+            _notificationRepo = notificationRepo;
         }
 
-        public async Task SendPushNotificationAsync(Guid receiverId, string title, string body, string? chatFriendId = null)
+        public async Task<Response<IEnumerable<NotificationResponseDto>>> GetMyNotificationsAsync(Guid userId)
         {
-            var user = await _userManager.FindByIdAsync(receiverId.ToString());
-
-            if (user == null || string.IsNullOrEmpty(user.FcmToken))
-            {
-                // لو اليوزر ملوش Token (يعني مش فاتح من موبايل)، مش هنعرف نبعتله إشعار
-                return;
-            }
-
-            // 👇 هنا كود الـ Firebase الفعلي (Placeholder) 👇
-            /*
-            var message = new FirebaseAdmin.Messaging.Message()
-            {
-                Token = user.FcmToken,
-                Notification = new FirebaseAdmin.Messaging.Notification()
+            var userNotifications = await _notificationRepo.GetTableNoTracking()
+                .Where(n => n.UserId == userId)
+                .OrderByDescending(n => n.CreatedAt)
+                .Select(n => new NotificationResponseDto
                 {
-                    Title = title,
-                    Body = body
-                },
-                Data = new Dictionary<string, string>()
-                {
-                    { "type", "chat" },
-                    { "senderId", chatFriendId } // عشان فلاتر لما تضغط على الإشعار يفتح الشات دايركت
-                }
-            };
-            await FirebaseAdmin.Messaging.FirebaseMessaging.DefaultInstance.SendAsync(message);
-            */
+                    Id = n.Id,
+                    Title = n.Title,
+                    Message = n.Message,
+                    Type = n.Type.ToString(),
+                    ReferenceId = n.ReferenceId,
+                    IsRead = n.IsRead,
+                    CreatedAt = n.CreatedAt
+                })
+                .ToListAsync();
 
-            await Task.CompletedTask;
+            return Success<IEnumerable<NotificationResponseDto>>(userNotifications);
+        }
+
+        public async Task<Response<string>> MarkNotificationAsReadAsync(Guid notificationId, Guid userId)
+        {
+            var notification = await _notificationRepo.GetByIdAsync(notificationId);
+
+            if (notification == null || notification.UserId != userId)
+                return NotFound<string>("Notification not found.");
+
+            notification.IsRead = true;
+            await _notificationRepo.UpdateAsync(notification);
+
+            return Success("Notification marked as read.");
         }
     }
 }

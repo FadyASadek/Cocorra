@@ -5,6 +5,10 @@ using Cocorra.DAL.Models;
 using Core.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.RolesService
 {
@@ -32,59 +36,6 @@ namespace Cocorra.BLL.Services.RolesService
             var role = await _roleManager.FindByIdAsync(roleId);
             if (role == null) return BadRequest<RoleDto>("Role not found");
             return Success(new RoleDto { Id = role.Id.ToString(), Name = role.Name! });
-        }
-
-        public async Task<Response<string>> CreateRoleAsync(string roleName)
-        {
-            var cleanName = roleName.Trim();
-
-            if (string.IsNullOrWhiteSpace(cleanName))
-                return BadRequest<string>("Role name cannot be empty");
-
-            if (await _roleManager.RoleExistsAsync(cleanName))
-                return BadRequest<string>("Role already exists");
-
-            var result = await _roleManager.CreateAsync(new IdentityRole<Guid>(cleanName));
-
-            if (result.Succeeded) return Success("Role created successfully");
-
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest<string>($"Failed to create role: {errors}");
-        }
-
-        public async Task<Response<string>> UpdateRoleAsync(UpdateRoleDto model)
-        {
-            var role = await _roleManager.FindByIdAsync(model.RoleId);
-            if (role == null) return BadRequest<string>("Role not found");
-
-            if (role.Name!.ToUpper() == "ADMIN" || role.Name!.ToUpper() == "USER")
-                return BadRequest<string>("Cannot rename system roles (Admin/User).");
-
-            role.Name = model.NewRoleName.Trim();
-            var result = await _roleManager.UpdateAsync(role);
-
-            if (result.Succeeded) return Success("Role updated successfully");
-
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest<string>($"Failed to update role: {errors}");
-        }
-
-        public async Task<Response<string>> DeleteRoleAsync(string roleId)
-        {
-            var role = await _roleManager.FindByIdAsync(roleId);
-            if (role == null) return BadRequest<string>("Role not found");
-
-            if (role.Name!.ToUpper() == "ADMIN" || role.Name!.ToUpper() == "USER") return BadRequest<string>("Cannot delete Admin role");
-
-            var usersInRole = await _userManager.GetUsersInRoleAsync(role.Name!);
-            if (usersInRole.Count > 0)
-                return BadRequest<string>($"Cannot delete role because {usersInRole.Count} users are assigned to it.");
-
-            var result = await _roleManager.DeleteAsync(role);
-            if (result.Succeeded) return Success("Role deleted successfully");
-
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest<string>($"Failed to delete role: {errors}");
         }
 
         public async Task<Response<string>> ManageUserRolesAsync(ManageUserRolesDto model)
@@ -128,7 +79,6 @@ namespace Cocorra.BLL.Services.RolesService
 
             var users = await _userManager.GetUsersInRoleAsync(roleName);
 
-            // Mapping كامل للـ DTO
             var usersDto = users.Select(u => new UserDto
             {
                 Id = u.Id.ToString(),

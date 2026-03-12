@@ -2,12 +2,15 @@
 using Cocorra.DAL.AppMetaData;
 using Cocorra.DAL.DTOS;
 using Cocorra.DAL.DTOS.Role;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
 namespace Cocorra.API.Controllers
 {
     [ApiController]
-    //[Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin")] 
     public class RolesController : ControllerBase
     {
         private readonly IRolesService _rolesService;
@@ -29,41 +32,6 @@ namespace Cocorra.API.Controllers
         public async Task<IActionResult> GetRoleById([FromRoute] string id)
         {
             var result = await _rolesService.GetRoleByIdAsync(id);
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
-        [HttpPost(Router.RolesRouting.Create)]
-        public async Task<IActionResult> CreateRole([FromQuery] string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                return BadRequest("Role name is required.");
-
-            var result = await _rolesService.CreateRoleAsync(name);
-
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
-        [HttpPut(Router.RolesRouting.Update)]
-        public async Task<IActionResult> UpdateRole([FromBody] UpdateRoleDto model)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var result = await _rolesService.UpdateRoleAsync(model);
-
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
-        [HttpDelete(Router.RolesRouting.Delete)]
-        public async Task<IActionResult> DeleteRole([FromRoute] string id)
-        {
-            var result = await _rolesService.DeleteRoleAsync(id);
-
             if (!result.Succeeded) return BadRequest(result);
 
             return Ok(result);

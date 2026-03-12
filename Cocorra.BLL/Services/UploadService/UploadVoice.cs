@@ -1,9 +1,5 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
-using System;
-using System.IO;
-using System.Linq; // محتاجين دي عشان الـ Contains
-using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.Upload
 {
@@ -11,11 +7,9 @@ namespace Cocorra.BLL.Services.Upload
     {
         private readonly IWebHostEnvironment _env;
 
-        // 1. تحديد قائمة الامتدادات المسموحة فقط (Audio Only)
         private readonly string[] _allowedExtensions = { ".mp3", ".wav", ".m4a", ".ogg", ".aac" };
 
-        // 2. تحديد الحجم الأقصى (3 ميجا بايت)
-        // 3 * 1024 * 1024 bytes
+       
         private const long _maxFileSize = 3 * 1024 * 1024;
 
         public UploadVoice(IWebHostEnvironment env)
@@ -69,7 +63,6 @@ namespace Cocorra.BLL.Services.Upload
             }
             catch (Exception ex)
             {
-                // سجل الخطأ هنا لو عندك Logger
                 return "Error:ServerException";
             }
         }

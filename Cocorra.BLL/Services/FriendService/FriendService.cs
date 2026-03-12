@@ -1,4 +1,4 @@
-﻿using Cocorra.BLL.Services.FriendService;
+﻿using Cocorra.BLL.Services.NotificationService; 
 using Cocorra.DAL.DTOS.FriendDto;
 using Cocorra.DAL.DTOS.NotificationDto;
 using Cocorra.DAL.Enums;
@@ -9,32 +9,31 @@ using Core.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.FriendService
 {
-    public class FriendService : ResponseHandler, IFriendService
+    public class FriendService : ResponseHandler, IFriendService 
     {
         private readonly IFriendRepository _friendRepo;
         private readonly INotificationRepository _notificationRepo;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IPushNotificationService _pushService; 
 
-        public FriendService(IFriendRepository friendRepo, INotificationRepository notificationRepo, UserManager<ApplicationUser> userManager)
+        public FriendService(IFriendRepository friendRepo, INotificationRepository notificationRepo, UserManager<ApplicationUser> userManager, IPushNotificationService pushService)
         {
             _friendRepo = friendRepo;
             _notificationRepo = notificationRepo;
             _userManager = userManager;
+            _pushService = pushService;
         }
 
         public async Task<Response<UserSearchDto>> SearchUserByIdAsync(Guid currentUserId, Guid targetUserId)
         {
-            // 1. ندور على اليوزر
             var targetUser = await _userManager.FindByIdAsync(targetUserId.ToString());
             if (targetUser == null) return NotFound<UserSearchDto>("User not found.");
 
-            // 2. نجيب حالة الصداقة بينهم من الريبو
             var friendRequest = await _friendRepo.GetFriendshipRelationAsync(currentUserId, targetUserId);
 
             string status = "None";
@@ -47,7 +46,6 @@ namespace Cocorra.BLL.Services.FriendService
                 }
             }
 
-            // 3. نرجع الداتا لفلاتر
             var dto = new UserSearchDto
             {
                 Id = targetUser.Id,
@@ -68,7 +66,6 @@ namespace Cocorra.BLL.Services.FriendService
 
             var currentUser = await _userManager.FindByIdAsync(currentUserId.ToString());
 
-            // 1. نتأكد إن مفيش طلب مبعوت قبل كده
             var existingRequest = await _friendRepo.GetFriendshipRelationAsync(currentUserId, targetUserId);
 
             if (existingRequest != null)
@@ -79,7 +76,6 @@ namespace Cocorra.BLL.Services.FriendService
                     return BadRequest<string>("You are already friends.");
             }
 
-            // 2. نعمل طلب الصداقة الجديد
             var newRequest = new FriendRequest
             {
                 SenderId = currentUserId,
@@ -90,7 +86,6 @@ namespace Cocorra.BLL.Services.FriendService
 
             await _friendRepo.AddAsync(newRequest);
 
-            // 3. 🔔 نسجل الإشعار لليوزر التاني
             var notification = new Notification
             {
                 UserId = targetUserId,
@@ -101,51 +96,23 @@ namespace Cocorra.BLL.Services.FriendService
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false
             };
-
             await _notificationRepo.AddAsync(notification);
 
-            // لو الريبو مش بيعمل Save أوتوماتيك في الـ AddAsync، استخدم دي:
-            // await _friendRepo.SaveChangesAsync();
+            _ = _pushService.SendPushNotificationAsync(targetUserId, "New Friend Request", notification.Message);
 
             return Success("Friend request sent successfully.");
         }
 
-        public async Task<Response<IEnumerable<NotificationResponseDto>>> GetMyNotificationsAsync(Guid userId)
-        {
-            // بنجيب كل إشعارات اليوزر من الريبو
-            var allNotifications = await _notificationRepo.GetTableNoTracking().ToListAsync();
-
-            var userNotifications = allNotifications
-                .Where(n => n.UserId == userId)
-                .OrderByDescending(n => n.CreatedAt)
-                .Select(n => new NotificationResponseDto
-                {
-                    Id = n.Id,
-                    Title = n.Title,
-                    Message = n.Message,
-                    Type = n.Type.ToString(),
-                    ReferenceId = n.ReferenceId,
-                    IsRead = n.IsRead,
-                    CreatedAt = n.CreatedAt
-                })
-                .ToList();
-
-            return Success<IEnumerable<NotificationResponseDto>>(userNotifications);
-        }
-
         public async Task<Response<string>> RespondToFriendRequestAsync(Guid currentUserId, Guid senderId, bool accept)
         {
-            // 1. نجيب الطلب من الريبو
             var request = await _friendRepo.GetPendingRequestAsync(senderId, currentUserId);
 
             if (request == null)
                 return BadRequest<string>("Friend request not found or already processed.");
 
-            // 2. نغير الحالة 
             request.Status = accept ? FriendRequestStatus.Accepted : FriendRequestStatus.Rejected;
             await _friendRepo.UpdateAsync(request);
 
-            // 3. لو وافق، نبعت إشعار للشخص اللي كان باعت الطلب
             if (accept)
             {
                 var currentUser = await _userManager.FindByIdAsync(currentUserId.ToString());
@@ -160,45 +127,30 @@ namespace Cocorra.BLL.Services.FriendService
                     IsRead = false
                 };
                 await _notificationRepo.AddAsync(notification);
+
+                _ = _pushService.SendPushNotificationAsync(senderId, "Friend Request Accepted", notification.Message);
             }
 
             return Success(accept ? "Friend request accepted." : "Friend request rejected.");
         }
 
-        public async Task<Response<string>> MarkNotificationAsReadAsync(Guid notificationId, Guid userId)
-        {
-            var notification = await _notificationRepo.GetByIdAsync(notificationId);
-
-            if (notification == null || notification.UserId != userId)
-                return NotFound<string>("Notification not found.");
-
-            notification.IsRead = true;
-            await _notificationRepo.UpdateAsync(notification);
-
-            return Success("Notification marked as read.");
-        }
-
         public async Task<Response<string>> RemoveFriendOrCancelRequestAsync(Guid currentUserId, Guid targetUserId)
         {
-            // 1. ندور على العلاقة
             var existingRequest = await _friendRepo.GetFriendshipRelationAsync(currentUserId, targetUserId);
 
             if (existingRequest == null)
                 return BadRequest<string>("No friendship or pending request found between you two.");
 
-            // 2. نمسح الإشعار لو الطلب كان لسه معلق
             if (existingRequest.Status == FriendRequestStatus.Pending)
             {
-                var allNotifications = await _notificationRepo.GetTableNoTracking().ToListAsync();
-                var relatedNotification = allNotifications.FirstOrDefault(n => n.ReferenceId == existingRequest.Id && n.Type == NotificationType.FriendRequest);
+                var relatedNotification = await _notificationRepo.GetTableNoTracking()
+                    .FirstOrDefaultAsync(n => n.ReferenceId == existingRequest.Id && n.Type == NotificationType.FriendRequest);
 
                 if (relatedNotification != null)
                 {
                     await _notificationRepo.DeleteAsync(relatedNotification);
                 }
             }
-
-            // 3. نمسح العلاقة
             await _friendRepo.DeleteAsync(existingRequest);
 
             return Success("Action completed successfully.");

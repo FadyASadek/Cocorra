@@ -1,4 +1,5 @@
 ﻿using Cocorra.DAL.Data;
+using Cocorra.DAL.DTOS.ChatDto;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using Microsoft.EntityFrameworkCore;
@@ -59,6 +60,34 @@ namespace Cocorra.DAL.Repository.MessageRepository
                 _dbContext.Messages.UpdateRange(unreadMessages);
                 await _dbContext.SaveChangesAsync();
             }
+        }
+        public async Task<List<ChatFriendDto>> GetFriendsChatSummariesAsync(Guid currentUserId, List<ApplicationUser> friends)
+        {
+            var friendIds = friends.Select(f => f.Id).ToList();
+
+            var summaries = await _dbContext.Messages
+                .Where(m => (m.SenderId == currentUserId && friendIds.Contains(m.ReceiverId)) ||
+                            (m.ReceiverId == currentUserId && friendIds.Contains(m.SenderId)))
+                .GroupBy(m => m.SenderId == currentUserId ? m.ReceiverId : m.SenderId)
+                .Select(g => new
+                {
+                    FriendId = g.Key,
+                    LastMessage = g.OrderByDescending(m => m.CreatedAt).FirstOrDefault(),
+                    UnreadCount = g.Count(m => m.ReceiverId == currentUserId && m.SenderId == g.Key && !m.IsRead)
+                })
+                .ToListAsync();
+
+            return friends.Select(f => {
+                var summary = summaries.FirstOrDefault(s => s.FriendId == f.Id);
+                return new ChatFriendDto
+                {
+                    FriendId = f.Id,
+                    FullName = $"{f.FirstName} {f.LastName}",
+                    LastMessage = summary?.LastMessage?.Content,
+                    LastMessageDate = summary?.LastMessage?.CreatedAt,
+                    UnreadCount = summary?.UnreadCount ?? 0
+                };
+            }).OrderByDescending(d => d.LastMessageDate ?? DateTime.MinValue).ToList();
         }
     }
 }

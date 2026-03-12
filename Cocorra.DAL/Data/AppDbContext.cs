@@ -96,12 +96,11 @@ namespace Cocorra.DAL.Data
             builder.Entity<RoomReminder>()
         .HasKey(rr => new { rr.UserId, rr.RoomId });
 
-            // 2. تظبيط علاقات جدول الصداقة (عشان EF Core ميتلخبطش بين الـ Sender والـ Receiver)
             builder.Entity<FriendRequest>()
                 .HasOne(fr => fr.Sender)
                 .WithMany()
                 .HasForeignKey(fr => fr.SenderId)
-                .OnDelete(DeleteBehavior.Restrict); // يفضل Restrict عشان لو يوزر اتمسح ميطيرش اليوزر التاني
+                .OnDelete(DeleteBehavior.Restrict); 
 
             builder.Entity<FriendRequest>()
                 .HasOne(fr => fr.Receiver)
@@ -121,6 +120,15 @@ namespace Cocorra.DAL.Data
                 .WithMany()
                 .HasForeignKey(m => m.ReceiverId)
                 .OnDelete(DeleteBehavior.Restrict);
-        }
+
+            builder.Entity<Message>()
+    .HasIndex(m => new { m.SenderId, m.ReceiverId, m.CreatedAt });
+            builder.Entity<Message>()
+    .HasIndex(m => new { m.ReceiverId, m.IsRead });
+            builder.Entity<FriendRequest>()
+    .HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
+    .IsUnique();
+        }   
+
     }
 }

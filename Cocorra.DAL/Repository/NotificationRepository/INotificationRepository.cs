@@ -1,4 +1,5 @@
-﻿using Cocorra.DAL.Models;
+﻿using Cocorra.DAL.DTOS.ChatDto;
+using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using System;
 using System.Collections.Generic;

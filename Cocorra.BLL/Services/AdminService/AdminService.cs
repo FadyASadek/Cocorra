@@ -5,10 +5,15 @@ using Core.Base;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.AdminService
 {
-    public class AdminService : ResponseHandler, IAdminService
+    public class AdminService : ResponseHandler, IAdminService // متنساش تنضف الـ IAdminService برضه
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IWebHostEnvironment _env;
@@ -77,7 +82,7 @@ namespace Cocorra.BLL.Services.AdminService
             var totalCount = await query.CountAsync();
 
             var users = await query
-                .OrderByDescending(u => u.Id) 
+                .OrderByDescending(u => u.Id)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => new UserDto
@@ -97,6 +102,7 @@ namespace Cocorra.BLL.Services.AdminService
 
             return response;
         }
+
         public async Task<Response<UserDto>> GetUserByIdAsync(Guid userId)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
@@ -118,87 +124,6 @@ namespace Cocorra.BLL.Services.AdminService
             return Success(userDto);
         }
 
-        public async Task<Response<UserDto>> UpdateUserAsync(Guid userId, UpdateUserDto model)
-        {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-
-            if (user == null)
-                return BadRequest<UserDto>("User not found");
-
-            user.FirstName = model.FirstName;
-            user.LastName = model.LastName;
-            user.Age = model.Age;
-            user.MBTI = model.MBTI;
-
-            if (user.Email != model.Email)
-            {
-                var existingUser = await _userManager.FindByEmailAsync(model.Email);
-                if (existingUser != null && existingUser.Id != user.Id)
-                {
-                    return BadRequest<UserDto>("Email is already taken by another user.");
-                }
-
-                user.Email = model.Email;
-                user.UserName = model.Email;
-                user.NormalizedEmail = model.Email.ToUpper();
-                user.NormalizedUserName = model.Email.ToUpper();
-            }
-
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
-            {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return BadRequest<UserDto>($"Failed to update user: {errors}");
-            }
-
-            var updatedDto = new UserDto
-            {
-                Id = user.Id.ToString(),
-                FullName = $"{user.FirstName} {user.LastName}",
-                Email = user.Email!,
-                Age = user.Age,
-                MBTI = user.MBTI ?? "N/A",
-                Status = user.Status.ToString(),
-                VoicePath = user.VoiceVerificationPath
-            };
-
-            return Success(updatedDto, "User updated successfully");
-        }
-
-        public async Task<Response<string>> DeleteUserAsync(Guid userId)
-        {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null) return BadRequest<string>("User not found");
-
-            var voicePath = user.VoiceVerificationPath;
-
-            var result = await _userManager.DeleteAsync(user);
-
-            if (result.Succeeded)
-            {
-                DeleteVoiceFile(voicePath);
-                return Success("User deleted permanently.");
-            }
-
-            return BadRequest<string>("Failed to delete user.");
-        }
-
-        public async Task<Response<string>> ResetUserPasswordAsync(Guid userId, string newPassword)
-        {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null) return BadRequest<string>("User not found");
-
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
-
-            if (result.Succeeded)
-                return Success("Password has been reset successfully.");
-
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return BadRequest<string>($"Failed to reset password: {errors}");
-        }
-
         public async Task<Response<DashboardStatsDto>> GetDashboardStatsAsync()
         {
             var stats = new DashboardStatsDto
@@ -216,19 +141,12 @@ namespace Cocorra.BLL.Services.AdminService
         private void DeleteVoiceFile(string? relativePath)
         {
             if (string.IsNullOrEmpty(relativePath)) return;
-
             try
             {
                 var absolutePath = Path.Combine(_env.WebRootPath, relativePath);
-
-                if (File.Exists(absolutePath))
-                {
-                    File.Delete(absolutePath);
-                }
+                if (File.Exists(absolutePath)) File.Delete(absolutePath);
             }
-            catch (Exception)
-            {
-            }
+            catch (Exception) { }
         }
     }
 }

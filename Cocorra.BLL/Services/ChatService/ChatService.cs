@@ -4,11 +4,13 @@ using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.MessageRepository;
 using Core.Base;
+using MediatR;
 using Microsoft.AspNetCore.Identity;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using static Cocorra.BLL.Services.Events.ChatEvents;
 
 namespace Cocorra.BLL.Services.ChatService
 {
@@ -18,27 +20,25 @@ namespace Cocorra.BLL.Services.ChatService
         private readonly IMessageRepository _messageRepo;
         private readonly IPushNotificationService _pushService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IMediator _mediator; 
 
-        // 👇 تم تحديث الـ Constructor لحقن الـ Push Service والـ UserManager 👇
-        public ChatService(IFriendRepository friendRepo, IMessageRepository messageRepo, IPushNotificationService pushService, UserManager<ApplicationUser> userManager)
+        public ChatService(IFriendRepository friendRepo, IMessageRepository messageRepo, IPushNotificationService pushService, UserManager<ApplicationUser> userManager, IMediator mediator)
         {
             _friendRepo = friendRepo;
             _messageRepo = messageRepo;
             _pushService = pushService;
             _userManager = userManager;
+            _mediator = mediator;
         }
 
         public async Task<Response<IEnumerable<MessageDto>>> GetChatHistoryAsync(Guid currentUserId, Guid friendId, int pageNumber, int pageSize)
         {
-            // 1. نتأكد إنهم أصدقاء أصلاً
             var friendship = await _friendRepo.GetFriendshipRelationAsync(currentUserId, friendId);
             if (friendship == null || friendship.Status != Cocorra.DAL.Enums.FriendRequestStatus.Accepted)
                 return BadRequest<IEnumerable<MessageDto>>("You can only view chat history with confirmed friends.");
 
-            // 2. نجيب الرسايل من الريبو بالصفحات
             var messages = await _messageRepo.GetChatHistoryAsync(currentUserId, friendId, pageNumber, pageSize);
 
-            // 3. نعملها Map للـ DTO
             var dtoList = messages.Select(m => new MessageDto
             {
                 Id = m.Id,
@@ -53,12 +53,10 @@ namespace Cocorra.BLL.Services.ChatService
 
         public async Task<Response<MessageDto>> SaveMessageAsync(Guid senderId, Guid receiverId, string content)
         {
-            // 1. حماية: هل هما أصدقاء؟ 
             var friendship = await _friendRepo.GetFriendshipRelationAsync(senderId, receiverId);
             if (friendship == null || friendship.Status != Cocorra.DAL.Enums.FriendRequestStatus.Accepted)
                 return BadRequest<MessageDto>("You can only send messages to confirmed friends.");
 
-            // 2. نحفظ الرسالة
             var message = new Message
             {
                 SenderId = senderId,
@@ -79,47 +77,27 @@ namespace Cocorra.BLL.Services.ChatService
                 CreatedAt = message.CreatedAt
             };
 
-            // 👇 3. إرسال الإشعار (Push Notification) للطرف التاني 👇
             var sender = await _userManager.FindByIdAsync(senderId.ToString());
             string senderName = sender != null ? $"{sender.FirstName} {sender.LastName}" : "New Message";
 
-            // استخدمنا Discard (_) عشان الإشعار يتبعت في الخلفية من غير ما يعطل سرعة الشات
             _ = _pushService.SendPushNotificationAsync(receiverId, senderName, content, senderId.ToString());
 
             return Success(dto);
         }
 
-        // 1. تعديل دالة لستة الأصدقاء بالكامل
         public async Task<Response<IEnumerable<ChatFriendDto>>> GetChatFriendsListAsync(Guid currentUserId)
         {
             var friends = await _friendRepo.GetAcceptedFriendsAsync(currentUserId);
-            var dtoList = new List<ChatFriendDto>();
-
-            foreach (var friend in friends)
-            {
-                var lastMsg = await _messageRepo.GetLastMessageAsync(currentUserId, friend.Id);
-                var unreadCount = await _messageRepo.GetUnreadCountAsync(senderId: friend.Id, receiverId: currentUserId);
-
-                dtoList.Add(new ChatFriendDto
-                {
-                    FriendId = friend.Id,
-                    FullName = $"{friend.FirstName} {friend.LastName}",
-                    LastMessage = lastMsg?.Content,
-                    LastMessageDate = lastMsg?.CreatedAt,
-                    UnreadCount = unreadCount
-                });
-            }
-
-            // بنرتب اللستة بحيث اللي باعتلي رسالة أحدث يظهر فوق (زي الواتساب)
-            var sortedList = dtoList.OrderByDescending(d => d.LastMessageDate ?? DateTime.MinValue).ToList();
-
-            return Success<IEnumerable<ChatFriendDto>>(sortedList);
+            var dtoList = await _messageRepo.GetFriendsChatSummariesAsync(currentUserId, friends.ToList());
+            return Success<IEnumerable<ChatFriendDto>>(dtoList);
         }
 
         public async Task<Response<string>> MarkMessagesAsReadAsync(Guid currentUserId, Guid friendId)
         {
-            // currentUserId هو اللي بيقرأ، يعني هو الـ receiver، والـ friendId هو الـ sender
             await _messageRepo.MarkMessagesAsReadAsync(senderId: friendId, receiverId: currentUserId);
+
+            await _mediator.Publish(new MessagesReadEvent(currentUserId, friendId));
+
             return Success("Messages marked as read.");
         }
     }

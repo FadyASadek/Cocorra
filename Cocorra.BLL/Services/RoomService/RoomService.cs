@@ -1,20 +1,22 @@
-﻿using Cocorra.DAL;
+﻿using Cocorra.BLL.Events;
+using Cocorra.DAL;
 using Cocorra.DAL.DTOS.RoomDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.RoomRepository;
 using Core.Base;
-using Microsoft.Extensions.Hosting;
-
+using MediatR;
+using Microsoft.AspNetCore.SignalR;
 namespace Cocorra.BLL.Services.RoomService;
 
 public class RoomService : ResponseHandler, IRoomService
 {
     private readonly IRoomRepository _roomRepo;
-
-    public RoomService(IRoomRepository roomRepo)
+    private readonly IMediator _mediator;
+    public RoomService(IRoomRepository roomRepo, IMediator mediator)
     {
         _roomRepo = roomRepo;
+        _mediator = mediator;
     }
 
     public async Task<Response<Guid>> CreateRoomAsync(CreateRoomDto dto, Guid hostId)
@@ -38,7 +40,7 @@ public class RoomService : ResponseHandler, IRoomService
                 SelectionMode = dto.SelectionMode,
                 HostId = hostId,
                 StartDate = dto.ScheduledStartDate ?? DateTime.UtcNow,
-                status = status, // الحالة الجديدة
+                status = status,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -78,11 +80,9 @@ public class RoomService : ResponseHandler, IRoomService
             return BadRequest<bool>("This room is no longer available.");
         }
 
-        // 👇 1. التأكد من السعة (Capacity) للناس اللي "جوه" فعلاً
         var allParticipants = await _roomRepo.GetRoomParticipantsAsync(roomId);
         var activeCount = allParticipants.Count(p => p.Status == ParticipantStatus.Active || p.Status == ParticipantStatus.PendingApproval);
 
-        // 👇 2. تشيك اليوزر القديم
         var existingParticipant = allParticipants.FirstOrDefault(p => p.UserId == userId);
 
         if (existingParticipant != null)
@@ -90,8 +90,7 @@ public class RoomService : ResponseHandler, IRoomService
             if (existingParticipant.Status == ParticipantStatus.Active) return Success(true);
             if (existingParticipant.Status == ParticipantStatus.Kicked) return BadRequest<bool>("You are banned from this room.");
 
-            // لو كانت خرجت (Left) وعايزة ترجع:
-            // لازم نتأكد إن لسه في مكان قبل ما نرجعها!
+            
             if (activeCount >= room.TotalCapacity) return BadRequest<bool>("Room is full.");
 
             existingParticipant.Status = room.IsPrivate ? ParticipantStatus.PendingApproval : ParticipantStatus.Active;
@@ -104,13 +103,11 @@ public class RoomService : ResponseHandler, IRoomService
             return Success(room.IsPrivate ? false : true, room.IsPrivate ? "Request sent." : "Rejoined successfully.");
         }
 
-        // 👇 3. لو يوزر جديد خالص، نتأكد من العدد برضه
         if (activeCount >= room.TotalCapacity)
         {
             return BadRequest<bool>("Room is full.");
         }
 
-        // 4. ضيف اليوزر
         var newParticipant = new RoomParticipant
         {
             RoomId = roomId,
@@ -120,6 +117,22 @@ public class RoomService : ResponseHandler, IRoomService
             IsMuted = true,
             Status = room.IsPrivate ? ParticipantStatus.PendingApproval : ParticipantStatus.Active
         };
+        if (room.IsPrivate)
+        {
+            var notification = new Notification
+            {
+                UserId = room.HostId, 
+                Title = "New Join Request 🚪",
+                Message = "Someone has requested to join your private room.",
+                Type = NotificationType.RoomReminder, 
+                ReferenceId = room.Id,
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            };
+            await _mediator.Publish(new UserRequestedToJoinRoomEvent(room.HostId, userId, roomId));
+
+            await _roomRepo.AddNotificationsAsync(new List<Notification> { notification });
+        }
 
         await _roomRepo.AddParticipantAsync(newParticipant);
         await _roomRepo.SaveChangesAsync();
@@ -128,15 +141,12 @@ public class RoomService : ResponseHandler, IRoomService
     }
     public async Task<Response<bool>> ApproveUserAsync(Guid roomId, Guid targetUserId, Guid hostId)
     {
-        // 1. نجيب الروم عشان نتأكد مين صاحبها
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null) return NotFound<bool>("Room not found.");
 
-        // 2. حماية (Security): هل اللي باعت الطلب هو الكوتش فعلاً؟
         if (room.HostId != hostId)
             return BadRequest<bool>("Only the host can approve join requests.");
 
-        // 3. ندور على طلب الانضمام بتاع اليوزر ده
         var participant = await _roomRepo.GetParticipantAsync(roomId, targetUserId);
         if (participant == null)
             return NotFound<bool>("User request not found.");
@@ -144,32 +154,38 @@ public class RoomService : ResponseHandler, IRoomService
         if (participant.Status == ParticipantStatus.Active)
             return Success(true, "User is already active in the room.");
 
-        // 4. نغير الحالة لـ Active (مقبول)
         participant.Status = ParticipantStatus.Active;
-
         await _roomRepo.UpdateParticipantAsync(participant);
-        await _roomRepo.SaveChangesAsync();
 
+        var notification = new Notification
+        {
+            UserId = targetUserId,
+            Title = "Request Approved ✅",
+            Message = $"Your request to join the room '{room.RoomTitle}' has been approved! You can enter now.",
+            Type = NotificationType.RoomReminder, 
+            ReferenceId = room.Id,
+            CreatedAt = DateTime.UtcNow,
+            IsRead = false
+        };
+        await _roomRepo.AddNotificationsAsync(new List<Notification> { notification });
+        await _roomRepo.SaveChangesAsync();
+        await _mediator.Publish(new UserApprovedToJoinRoomEvent(targetUserId, roomId));
         return Success(true, "User approved successfully.");
     }
     public async Task<Response<RoomStateDto>> GetRoomStateAsync(Guid roomId, Guid currentUserId)
     {
-        // 1. نجيب الروم
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null) return NotFound<RoomStateDto>("Room not found.");
 
-        // 2. حماية: نتأكد إن اليوزر اللي بيطلب الداتا دي أصلاً عضو في الروم ومقبول
         var currentParticipant = await _roomRepo.GetParticipantAsync(roomId, currentUserId);
         if (currentParticipant == null || currentParticipant.Status != ParticipantStatus.Active)
         {
             return BadRequest<RoomStateDto>("You are not an active member of this room.");
         }
 
-        // 3. نجيب كل الناس اللي في الروم (والمقبولين بس)
         var participants = await _roomRepo.GetRoomParticipantsAsync(roomId);
         var activeParticipants = participants.Where(p => p.Status == ParticipantStatus.Active).ToList();
 
-        // 4. نجمع الداتا في الـ DTO
         var roomState = new RoomStateDto
         {
             RoomId = room.Id,
@@ -193,7 +209,6 @@ public class RoomService : ResponseHandler, IRoomService
 
     public async Task<Response<IEnumerable<RoomSummaryDto>>> GetRoomsFeedAsync(Guid currentUserId)
     {
-        // 1. نجيب الغرف من الريبو مباشرة
         var activeRooms = await _roomRepo.GetActiveRoomsAsync();
         var resultList = new List<RoomSummaryDto>();
 
@@ -218,7 +233,6 @@ public class RoomService : ResponseHandler, IRoomService
             }
             else if (room.status == RoomStatus.Scheduled)
             {
-                // 👇 نستخدم الريبو بدل الـ DbContext 👇
                 var reminder = await _roomRepo.GetRoomReminderAsync(room.Id, currentUserId);
                 dto.IsReminderSetByMe = reminder != null;
 
@@ -241,7 +255,6 @@ public class RoomService : ResponseHandler, IRoomService
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null) return NotFound<string>("Room not found.");
 
-        // 1. حماية: نتأكد إن الكوتش هو صاحب الروم وإنها لسه مابدأتش
         if (room.HostId != hostId)
             return BadRequest<string>("Only the host can start this room.");
 
@@ -251,11 +264,9 @@ public class RoomService : ResponseHandler, IRoomService
         if (room.status == RoomStatus.Ended || room.status == RoomStatus.Cancelled)
             return BadRequest<string>("This room is no longer available.");
 
-        // 2. تحويل الحالة لـ Live
         room.status = RoomStatus.Live;
-        await _roomRepo.UpdateAsync(room); // ده بيعمل Update للروم
+        await _roomRepo.UpdateAsync(room); 
 
-        // 3. إضافة الكوتش كأول متحدث على المسرح (زي ما عملنا في الـ Create)
         var hostParticipant = new RoomParticipant
         {
             RoomId = roomId,
@@ -268,7 +279,6 @@ public class RoomService : ResponseHandler, IRoomService
         };
         await _roomRepo.AddParticipantAsync(hostParticipant);
 
-        // 4. 🔔 جلب المشتركين وإرسال الإشعارات
         var reminders = await _roomRepo.GetRemindersByRoomIdAsync(roomId);
         if (reminders.Any())
         {
@@ -285,11 +295,9 @@ public class RoomService : ResponseHandler, IRoomService
 
             await _roomRepo.AddNotificationsAsync(notifications);
 
-            // نقدر نمسح الـ Reminders عشان دورهم انتهى (اختياري بس بينظف الداتابيز)
             await _roomRepo.RemoveRemindersAsync(reminders);
         }
 
-        // نحفظ كل التغييرات دي خبطة واحدة
         await _roomRepo.SaveChangesAsync();
 
         return Success("Room is now live and notifications have been sent!");
@@ -302,7 +310,6 @@ public class RoomService : ResponseHandler, IRoomService
         if (room.status != RoomStatus.Scheduled)
             return BadRequest<string>("You can only set reminders for scheduled rooms.");
 
-        // 👇 نستخدم الريبو بدل الـ DbContext 👇
         var existingReminder = await _roomRepo.GetRoomReminderAsync(roomId, userId);
 
         if (existingReminder != null)

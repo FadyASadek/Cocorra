@@ -5,6 +5,7 @@ using Cocorra.BLL.Services.AuthServices;
 using Cocorra.BLL.Services.ChatService;
 using Cocorra.BLL.Services.FriendService;
 using Cocorra.BLL.Services.NotificationService;
+using Cocorra.BLL.Services.ProfileService;
 using Cocorra.BLL.Services.RolesService;
 using Cocorra.BLL.Services.RoomService;
 using Cocorra.BLL.Services.Upload;
@@ -68,10 +69,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder =>
         builder
-            .SetIsOriginAllowed(origin => true) // 👈 الحل السحري: اسمح لأي حد (للتطوير فقط)
+            .SetIsOriginAllowed(origin => true) 
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials()); // دي ضرورية عشان SignalR
+            .AllowCredentials()); 
 });
 
 #region AddScopedServices
@@ -88,8 +89,14 @@ builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
 builder.Services.AddScoped<IChatService,ChatService>();
 builder.Services.AddScoped<IMessageRepository,MessageRepository>();
-
+builder.Services.AddScoped<IUploadImage,UploadImage>();
+builder.Services.AddScoped<IProfileService,ProfileService>();
 builder.Services.AddScoped(typeof(IGenericRepositoryAsync<>), typeof(GenericRepositoryAsync<>));
+builder.Services.AddMediatR(cfg => {
+    cfg.RegisterServicesFromAssembly(typeof(Program).Assembly);
+    cfg.RegisterServicesFromAssembly(typeof(Cocorra.BLL.Events.UserRequestedToJoinRoomEvent).Assembly);
+});
+builder.Services.AddScoped<INotificationService, NotificationService>();
 #endregion
 
 #region AddDbContext
@@ -144,13 +151,11 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
-
-            // لو فيه توكن في الرابط + الرابط رايح للـ Hub بتاعنا
             var path = context.HttpContext.Request.Path;
+
             if (!string.IsNullOrEmpty(accessToken) &&
-                path.StartsWithSegments("/chatHub"))
+                (path.StartsWithSegments("/chatHub") || path.StartsWithSegments("/roomHub")))
             {
-                // خد التوكن من الرابط وحطه في الكونتكست عشان السيرفر يشوفه
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
@@ -184,9 +189,9 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseCors("CorsPolicy");
-app.UseAuthentication(); // لازم الأول
-app.UseAuthorization();  // لازم بعده
-app.MapHub<RoomHub>("/roomHub"); 
+app.UseAuthentication(); 
+app.UseAuthorization();
+app.MapHub<RoomHub>("/roomHub");
+app.MapHub<ChatHub>("/chatHub"); 
 app.MapControllers();
-
 app.Run();

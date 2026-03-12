@@ -8,15 +8,8 @@ namespace Cocorra.BLL.Services.RolesService
     public interface IRolesService
     {
         Task<Response<List<RoleDto>>> GetRolesAsync();
-
         Task<Response<RoleDto>> GetRoleByIdAsync(string roleId);
-
-        Task<Response<string>> CreateRoleAsync(string roleName);
-
-        Task<Response<string>> DeleteRoleAsync(string roleId);
-
         Task<Response<string>> ManageUserRolesAsync(ManageUserRolesDto model);
-        Task<Response<string>> UpdateRoleAsync(UpdateRoleDto model);
         Task<Response<List<UserDto>>> GetUsersInRoleAsync(string roleName);
     }
 }

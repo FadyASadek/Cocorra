@@ -1,12 +1,15 @@
 ﻿using Cocorra.BLL.Services.AdminService;
 using Cocorra.DAL.AppMetaData;
 using Cocorra.DAL.DTOS.AdminDto;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace Cocorra.API.Controllers
 {
     [ApiController]
-    //[Authorize(Roles = "Admin")] 
+    [Authorize(Roles = "Admin")] 
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -32,45 +35,10 @@ namespace Cocorra.API.Controllers
             return Ok(result);
         }
 
-        [HttpPut(Router.AdminRouting.Update)]
-        public async Task<IActionResult> UpdateUser([FromRoute] Guid id, [FromBody] UpdateUserDto model)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var result = await _adminService.UpdateUserAsync(id, model);
-
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
         [HttpPut(Router.AdminRouting.ChangeStatus)]
         public async Task<IActionResult> ChangeStatus([FromRoute] Guid id, [FromBody] ChangeStatusDto model)
         {
             var result = await _adminService.ChangeUserStatusAsync(id, model.NewStatus);
-
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
-        [HttpDelete(Router.AdminRouting.Delete)]
-        public async Task<IActionResult> DeleteUser([FromRoute] Guid id)
-        {
-            var result = await _adminService.DeleteUserAsync(id);
-
-            if (!result.Succeeded) return BadRequest(result);
-
-            return Ok(result);
-        }
-
-        [HttpPost(Router.AdminRouting.ResetPassword)]
-        public async Task<IActionResult> ResetPassword([FromRoute] Guid id, [FromBody] PasswordResetDto model)
-        {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            var result = await _adminService.ResetUserPasswordAsync(id, model.NewPassword);
-
             if (!result.Succeeded) return BadRequest(result);
 
             return Ok(result);
