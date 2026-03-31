@@ -1,11 +1,11 @@
-﻿using Cocorra.BLL.Services.NotificationService; 
+using Cocorra.BLL.Services.NotificationService; 
 using Cocorra.DAL.DTOS.FriendDto;
 using Cocorra.DAL.DTOS.NotificationDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.NotificationRepository;
-using Core.Base;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;

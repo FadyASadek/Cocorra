@@ -1,9 +1,13 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Cocorra.DAL.Models
 {
-    public class BaseEntity
+    public abstract class BaseEntity
     {
         public Guid Id { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdateAt { get; set; }
+
+        [Column("UpdateAt")] // Preserves DB column name to avoid migration
+        public DateTime? UpdatedAt { get; set; }
     }
 }

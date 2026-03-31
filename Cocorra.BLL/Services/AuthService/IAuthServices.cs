@@ -1,6 +1,6 @@
 using Cocorra.BLL.DTOS.Auth;
 using Cocorra.DAL.DTOS.Auth;
-using Core.Base;
+using Cocorra.BLL.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,5 +15,6 @@ namespace Cocorra.BLL.Services.Auth
         Task<Response<string>> SubmitMbtiAsync(Guid userId, SubmitMbtiDto dto);
         Task<Response<string>> ForgotPasswordAsync(ForgotPasswordDto dto);
         Task<Response<string>> UpdateFcmTokenAsync(Guid userId, string fcmToken);
+        Task<Response<string>> ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

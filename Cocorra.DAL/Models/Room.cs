@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Cocorra.DAL.Models;
@@ -14,7 +14,8 @@ public class Room : BaseEntity
 
     public DateTime StartDate { get; set; } = DateTime.UtcNow;
 
-    public RoomStatus status { get; set; } = RoomStatus.Scheduled;
+    [System.ComponentModel.DataAnnotations.Schema.Column("status")]
+    public RoomStatus Status { get; set; } = RoomStatus.Scheduled;
 
     // --- إعدادات السعة (Capacity Settings) ---
 

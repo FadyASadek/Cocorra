@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace Core.Base
+namespace Cocorra.BLL.Base
 {
     public class ResponseHandler
     {
@@ -55,6 +55,7 @@ namespace Core.Base
                 StatusCode = HttpStatusCode.BadRequest,
                 Succeeded = false,
                 Message = message,
+                Errors = new List<string>()
             };
         }
         public Response<T> UnprocessableEntity<T>(string message = "Validation Failed", List<string>? errors = null)

@@ -205,7 +205,18 @@ using (var scope = app.Services.CreateScope())
     }
 }
 app.UseHttpsRedirection();
-app.UseStaticFiles();
+var contentTypeProvider = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+contentTypeProvider.Mappings[".m4a"] = "audio/mp4";
+contentTypeProvider.Mappings[".aac"] = "audio/aac";
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    ContentTypeProvider = contentTypeProvider,
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=604800");
+    }
+});
 app.UseCors("CorsPolicy");
 
 app.UseAuthentication();

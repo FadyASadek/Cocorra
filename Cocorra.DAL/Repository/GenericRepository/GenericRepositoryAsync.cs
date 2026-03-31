@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL.Data;
+using Cocorra.DAL.Data;
 using Cocorra.DAL.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -23,12 +23,9 @@ public class GenericRepositoryAsync<T> : IGenericRepositoryAsync<T> where T : Ba
 
     #region Actions
 
-    // 👇 التعديل 2 (الأهم): استبدال FindAsync
     public virtual async Task<T?> GetByIdAsync(Guid id)
     {
-        // FindAsync أحياناً بيتجاهل فلتر الحذف لو العنصر في الميموري
-        // FirstOrDefaultAsync بيضمن إن الاستعلام يروح للداتابيز ويطبق شرط !IsDeleted
-        return await _dbContext.Set<T>().FirstOrDefaultAsync(x => x.Id == id);
+        return await _dbContext.Set<T>().FindAsync(id);
     }
 
     public IQueryable<T> GetTableNoTracking()
@@ -73,11 +70,7 @@ public class GenericRepositoryAsync<T> : IGenericRepositoryAsync<T> where T : Ba
 
     public virtual async Task DeleteRangeAsync(ICollection<T> entities)
     {
-        foreach (var entity in entities)
-        {
-            // نفس الفكرة، الـ Context هيعترض الحالة Deleted ويحولها
-            _dbContext.Entry(entity).State = EntityState.Deleted;
-        }
+        _dbContext.Set<T>().RemoveRange(entities);
         await _dbContext.SaveChangesAsync();
     }
 

@@ -1,5 +1,5 @@
-﻿using Cocorra.DAL.DTOS.NotificationDto;
-using Core.Base;
+using Cocorra.DAL.DTOS.NotificationDto;
+using Cocorra.BLL.Base;
 
 
 namespace Cocorra.BLL.Services.NotificationService

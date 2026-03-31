@@ -1,10 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
+using Microsoft.EntityFrameworkCore;
+
 namespace Cocorra.DAL.Models
 {
-    public class FriendRequest :BaseEntity
+    [Index(nameof(SenderId), nameof(Status))]
+    [Index(nameof(ReceiverId), nameof(Status))]
+    public class FriendRequest : BaseEntity
     {
 
         public Guid SenderId { get; set; }

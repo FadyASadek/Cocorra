@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Core.Base;
+using Cocorra.BLL.Base;
 
 namespace Cocorra.BLL.Services.OTPService
 {

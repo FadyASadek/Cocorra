@@ -1,5 +1,5 @@
-﻿using Cocorra.DAL.DTOS.ProfileDto;
-using Core.Base;
+using Cocorra.DAL.DTOS.ProfileDto;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Http;
 
 namespace Cocorra.BLL.Services.ProfileService

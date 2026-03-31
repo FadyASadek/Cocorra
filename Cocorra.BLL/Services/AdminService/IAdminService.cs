@@ -1,6 +1,6 @@
-﻿using Cocorra.DAL.DTOS.AdminDto;
+using Cocorra.DAL.DTOS.AdminDto;
 using Cocorra.DAL.Enums;
-using Core.Base;
+using Cocorra.BLL.Base;
 
 
 namespace Cocorra.BLL.Services.AdminService

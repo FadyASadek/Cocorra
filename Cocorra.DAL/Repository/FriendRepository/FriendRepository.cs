@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL.Data;
+using Cocorra.DAL.Data;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using Cocorra.DAL.Repository.RoomRepository;
@@ -28,14 +28,15 @@ public class FriendRepository : GenericRepositoryAsync<FriendRequest>, IFriendRe
         return await _dbContext.FriendRequests
             .FirstOrDefaultAsync(f => f.SenderId == senderId && f.ReceiverId == receiverId && f.Status == FriendRequestStatus.Pending);
     }
-    public async Task<List<ApplicationUser>> GetAcceptedFriendsAsync(Guid userId)
+    public async Task<List<ApplicationUser>> GetAcceptedFriendsAsync(Guid userId, int page = 1, int pageSize = 20)
     {
-        var friendships = await _dbContext.FriendRequests
-            .Include(f => f.Sender)
-            .Include(f => f.Receiver)
+        return await _dbContext.FriendRequests
+            .AsNoTracking()
             .Where(f => (f.SenderId == userId || f.ReceiverId == userId) && f.Status == FriendRequestStatus.Accepted)
+            .Select(f => f.SenderId == userId ? f.Receiver! : f.Sender!)
+            .OrderBy(u => u.FirstName)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
-
-        return friendships.Select(f => f.SenderId == userId ? f.Receiver! : f.Sender!).ToList();
     }
 }

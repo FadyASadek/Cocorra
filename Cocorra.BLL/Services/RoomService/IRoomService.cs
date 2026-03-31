@@ -1,5 +1,5 @@
-﻿using Cocorra.DAL.DTOS.RoomDto;
-using Core.Base;
+using Cocorra.DAL.DTOS.RoomDto;
+using Cocorra.BLL.Base;
 
 namespace Cocorra.BLL.Services.RoomService;
 

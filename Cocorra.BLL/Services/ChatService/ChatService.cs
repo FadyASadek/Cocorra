@@ -1,9 +1,9 @@
-﻿using Cocorra.BLL.Services.NotificationService;
+using Cocorra.BLL.Services.NotificationService;
 using Cocorra.DAL.DTOS.ChatDto;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.MessageRepository;
-using Core.Base;
+using Cocorra.BLL.Base;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
 using System;
@@ -85,9 +85,9 @@ namespace Cocorra.BLL.Services.ChatService
             return Success(dto);
         }
 
-        public async Task<Response<IEnumerable<ChatFriendDto>>> GetChatFriendsListAsync(Guid currentUserId)
+        public async Task<Response<IEnumerable<ChatFriendDto>>> GetChatFriendsListAsync(Guid currentUserId, int pageNumber = 1, int pageSize = 20)
         {
-            var friends = await _friendRepo.GetAcceptedFriendsAsync(currentUserId);
+            var friends = await _friendRepo.GetAcceptedFriendsAsync(currentUserId, pageNumber, pageSize);
             var dtoList = await _messageRepo.GetFriendsChatSummariesAsync(currentUserId, friends.ToList());
             return Success<IEnumerable<ChatFriendDto>>(dtoList);
         }

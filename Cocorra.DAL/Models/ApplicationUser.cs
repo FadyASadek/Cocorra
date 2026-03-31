@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
 namespace Cocorra.DAL.Models
@@ -18,7 +18,8 @@ namespace Cocorra.DAL.Models
         public virtual ICollection<RoomParticipant> RoomParticipations { get; set; } = new List<RoomParticipant>();
         public string? FcmToken { get; set; }
         public virtual ICollection<Room> OwnedRooms { get; set; }= new List<Room>();
-        public DateTime CreateAt { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.Column("CreateAt")]
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? ProfilePicturePath { get; set; }
         public string? Bio { get; set; } 
         

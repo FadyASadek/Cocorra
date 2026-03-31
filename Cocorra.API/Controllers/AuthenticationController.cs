@@ -45,6 +45,7 @@ namespace Cocorra.API.Controllers
             return Ok(result);
         }
 
+        [Authorize]
         [HttpPost(Router.AuthenticationRouting.SubmitMbti)]
         public async Task<IActionResult> SubmitMbti([FromBody] SubmitMbtiDto dto)
         {
@@ -85,6 +86,15 @@ namespace Cocorra.API.Controllers
         public async Task<IActionResult> ConfirmEmail([FromQuery] string email, [FromQuery] string otpCode)
         {
             var result = await _otpService.VerifyOtpAsync(email, otpCode);
+            return StatusCode((int)result.StatusCode, result);
+        }
+
+        [HttpPost(Router.AuthenticationRouting.ResetPassword)]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var result = await _authServices.ResetPasswordAsync(dto);
             return StatusCode((int)result.StatusCode, result);
         }
     }

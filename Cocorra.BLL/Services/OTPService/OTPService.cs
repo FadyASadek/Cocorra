@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cocorra.BLL.Services.Email;
 using Cocorra.DAL.Models;
-using Core.Base;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;

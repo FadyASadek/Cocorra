@@ -1,6 +1,6 @@
-﻿using Cocorra.DAL.DTOS.NotificationDto;
+using Cocorra.DAL.DTOS.NotificationDto;
 using Cocorra.DAL.Repository.NotificationRepository;
-using Core.Base;
+using Cocorra.BLL.Base;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;

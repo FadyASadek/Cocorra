@@ -1,9 +1,9 @@
-﻿using Cocorra.BLL.Services.Upload;
+using Cocorra.BLL.Services.Upload;
 using Cocorra.DAL.DTOS.ProfileDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.FriendRepository;
-using Core.Base;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 
@@ -33,7 +33,7 @@ namespace Cocorra.BLL.Services.ProfileService
                 FirstName = user.FirstName,
                 LastName = user.LastName,
                 Email = user.Email!,
-                ProfilePicturePath = user.ProfilePicturePath,
+                ProfilePicturePath = user.ProfilePicturePath ?? "",
                 Bio = user.Bio,
                 Age = user.Age,
                 MBTI = user.MBTI
@@ -52,15 +52,17 @@ namespace Cocorra.BLL.Services.ProfileService
 
             var friendship = await _friendRepo.GetFriendshipRelationAsync(currentUserId, targetUserId);
 
+            bool isFriend = friendship?.Status == FriendRequestStatus.Accepted;
+
             var dto = new PublicProfileDto
             {
                 UserId = user.Id,
                 FullName = $"{user.FirstName} {user.LastName}",
-                ProfilePicturePath = user.ProfilePicturePath,
-                Bio = user.Bio,
-                MBTI = user.MBTI,
+                ProfilePicturePath = user.ProfilePicturePath ?? "",
+                Bio = isFriend ? user.Bio : null,
+                MBTI = isFriend ? user.MBTI : null,
                 FriendshipStatus = friendship?.Status,
-                IsFriend = friendship?.Status == FriendRequestStatus.Accepted
+                IsFriend = isFriend
             };
 
             return Success(dto);
@@ -80,7 +82,19 @@ namespace Cocorra.BLL.Services.ProfileService
             if (!result.Succeeded)
                 return BadRequest<MyProfileDto>("Failed to update profile.");
 
-            return await GetMyProfileAsync(userId); 
+            var dtoToReturn = new MyProfileDto
+            {
+                Id = user.Id,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Email = user.Email!,
+                ProfilePicturePath = user.ProfilePicturePath ?? "",
+                Bio = user.Bio,
+                Age = user.Age,
+                MBTI = user.MBTI
+            };
+
+            return Success(dtoToReturn); 
         }
         public async Task<Response<string>> UploadProfilePictureAsync(Guid userId, IFormFile imageFile)
         {
@@ -92,16 +106,20 @@ namespace Cocorra.BLL.Services.ProfileService
             if (newImagePath.StartsWith("Error"))
                 return BadRequest<string>(newImagePath); 
 
-            if (!string.IsNullOrEmpty(user.ProfilePicturePath))
-            {
-                _uploadImage.DeleteImage(user.ProfilePicturePath);
-            }
-
+            var oldImagePath = user.ProfilePicturePath;
             user.ProfilePicturePath = newImagePath;
             var result = await _userManager.UpdateAsync(user);
 
             if (!result.Succeeded)
+            {
+                _uploadImage.DeleteImage(newImagePath);
                 return BadRequest<string>("Failed to update profile picture in database.");
+            }
+
+            if (!string.IsNullOrEmpty(oldImagePath))
+            {
+                _uploadImage.DeleteImage(oldImagePath);
+            }
 
             return Success(newImagePath, "Profile picture updated successfully.");
         }

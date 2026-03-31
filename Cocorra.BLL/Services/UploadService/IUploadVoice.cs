@@ -8,6 +8,7 @@ namespace Cocorra.BLL.Services.Upload
 {
     public interface IUploadVoice
     {
-        Task<string> SaveVoice (IFormFile voiceFile); 
+        Task<string> SaveVoice (IFormFile voiceFile);
+        void DeleteVoice(string? voicePath);
     }
 }

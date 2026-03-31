@@ -1,4 +1,4 @@
-﻿namespace Cocorra.DAL;
+namespace Cocorra.DAL.Enums;
 
 public enum RoomStatus
 {

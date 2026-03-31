@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL;
+using Cocorra.DAL.Enums;
 using Cocorra.DAL.Repository.RoomRepository;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
@@ -36,7 +36,7 @@ namespace Cocorra.API.Hubs
                 throw new HubException("Invalid Room ID.");
 
             var room = await _roomRepo.GetByIdAsync(roomGuid);
-            if (room == null || room.status != RoomStatus.Live)
+            if (room == null || room.Status != RoomStatus.Live)
                 throw new HubException("Room is not live yet or has ended.");
 
             var participant = await _roomRepo.GetParticipantAsync(roomGuid, userId);

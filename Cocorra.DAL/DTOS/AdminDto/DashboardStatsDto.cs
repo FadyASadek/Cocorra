@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,5 +11,6 @@ namespace Cocorra.DAL.DTOS.AdminDto
         public int PendingUsers { get; set; }
         public int BannedUsers { get; set; }
         public int RejectedUsers { get; set; }
+        public int ReRecordUsers { get; set; }
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Cocorra.DAL.AppMetaData
+namespace Cocorra.DAL.AppMetaData
 {
     public static class Router
     {
@@ -16,6 +16,7 @@
             public const string UpdateFcmToken = Prefix + "/UpdateFcmToken";
             public const string ConfirmEmail = Prefix + "/ConfirmEmail"; // GET
             public const string ResendOtp = Prefix + "/ResendOtp"; // POST
+            public const string ResetPassword = Prefix + "/ResetPassword"; // POST
         }
 
         public static class AdminRouting

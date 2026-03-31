@@ -1,8 +1,8 @@
-﻿using Cocorra.DAL.DTOS;
+using Cocorra.DAL.DTOS;
 using Cocorra.DAL.DTOS.AdminDto;
 using Cocorra.DAL.DTOS.Role;
 using Cocorra.DAL.Models;
-using Core.Base;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -45,6 +45,9 @@ namespace Cocorra.BLL.Services.RolesService
 
             foreach (var role in model.Roles)
             {
+                if (role.Equals("Admin", StringComparison.OrdinalIgnoreCase))
+                    return BadRequest<string>("Cannot assign the Admin role through this endpoint.");
+
                 if (!await _roleManager.RoleExistsAsync(role))
                     return BadRequest<string>($"Role '{role}' does not exist in the system.");
             }
@@ -87,7 +90,7 @@ namespace Cocorra.BLL.Services.RolesService
                 Age = u.Age,
                 MBTI = u.MBTI ?? "N/A",
                 Status = u.Status.ToString(),
-                VoicePath = u.VoiceVerificationPath
+                VoicePath = u.VoiceVerificationPath ?? ""
             }).ToList();
 
             return Success(usersDto);

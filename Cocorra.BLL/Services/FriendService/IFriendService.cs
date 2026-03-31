@@ -1,6 +1,6 @@
-﻿using Cocorra.DAL.DTOS.FriendDto;
+using Cocorra.DAL.DTOS.FriendDto;
 using Cocorra.DAL.DTOS.NotificationDto;
-using Core.Base;
+using Cocorra.BLL.Base;
 using System;
 using System.Collections.Generic;
 using System.Text;

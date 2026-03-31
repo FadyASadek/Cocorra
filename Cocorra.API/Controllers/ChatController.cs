@@ -1,4 +1,4 @@
-﻿using Cocorra.BLL.Services.ChatService;
+using Cocorra.BLL.Services.ChatService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -20,12 +20,15 @@ namespace Cocorra.API.Controllers
         }
 
         [HttpGet("friends-list")]
-        public async Task<IActionResult> GetFriendsList()
+        public async Task<IActionResult> GetFriendsList([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(userIdString, out Guid currentUserId)) return Unauthorized();
 
-            var result = await _chatService.GetChatFriendsListAsync(currentUserId);
+            if (pageSize > 100) pageSize = 100;
+            if (pageNumber < 1) pageNumber = 1;
+
+            var result = await _chatService.GetChatFriendsListAsync(currentUserId, pageNumber, pageSize);
             return StatusCode((int)result.StatusCode, result);
         }
         [HttpGet("history/{friendId:guid}")]

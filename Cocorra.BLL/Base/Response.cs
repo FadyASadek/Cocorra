@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace Core.Base
+namespace Cocorra.BLL.Base
 {
     public class Response<T>
     {

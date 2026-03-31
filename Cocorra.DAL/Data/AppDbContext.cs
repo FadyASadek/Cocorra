@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL.Models;
+using Cocorra.DAL.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -106,7 +106,7 @@ namespace Cocorra.DAL.Data
                 .HasOne(fr => fr.Receiver)
                 .WithMany()
                 .HasForeignKey(fr => fr.ReceiverId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
 
 
             builder.Entity<Message>()
@@ -126,8 +126,15 @@ namespace Cocorra.DAL.Data
             builder.Entity<Message>()
     .HasIndex(m => new { m.ReceiverId, m.IsRead });
             builder.Entity<FriendRequest>()
-    .HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
-    .IsUnique();
+                .HasIndex(fr => new { fr.SenderId, fr.ReceiverId })
+                .IsUnique();
+
+            builder.Entity<Notification>()
+                .HasIndex(n => new { n.UserId, n.CreatedAt });
+
+            builder.Entity<Room>()
+                .HasIndex(r => r.Status)
+                .HasDatabaseName("IX_Rooms_Status");
         }   
 
     }

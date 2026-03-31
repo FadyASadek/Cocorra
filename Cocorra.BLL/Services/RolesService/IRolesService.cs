@@ -1,7 +1,7 @@
-﻿using Cocorra.DAL.DTOS;
+using Cocorra.DAL.DTOS;
 using Cocorra.DAL.DTOS.AdminDto;
 using Cocorra.DAL.DTOS.Role;
-using Core.Base;
+using Cocorra.BLL.Base;
 
 namespace Cocorra.BLL.Services.RolesService
 {

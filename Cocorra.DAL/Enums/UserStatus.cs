@@ -5,6 +5,7 @@ namespace Cocorra.DAL.Enums
         Pending,
         Active,
         Rejected,
-        Banned
+        Banned,
+        ReRecord
     }
 }

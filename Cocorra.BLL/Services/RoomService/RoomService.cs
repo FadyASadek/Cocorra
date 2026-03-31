@@ -1,10 +1,9 @@
-﻿using Cocorra.BLL.Events;
-using Cocorra.DAL;
+using Cocorra.BLL.Events;
 using Cocorra.DAL.DTOS.RoomDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.RoomRepository;
-using Core.Base;
+using Cocorra.BLL.Base;
 using MediatR;
 using Microsoft.AspNetCore.SignalR;
 namespace Cocorra.BLL.Services.RoomService;
@@ -40,7 +39,7 @@ public class RoomService : ResponseHandler, IRoomService
                 SelectionMode = dto.SelectionMode,
                 HostId = hostId,
                 StartDate = dto.ScheduledStartDate ?? DateTime.UtcNow,
-                status = status,
+                Status = status,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -71,11 +70,11 @@ public class RoomService : ResponseHandler, IRoomService
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null) return NotFound<bool>("Room not found.");
 
-        if (room.status == RoomStatus.Scheduled)
+        if (room.Status == RoomStatus.Scheduled)
         {
             return BadRequest<bool>("This room has not started yet. You can set a reminder instead.");
         }
-        if (room.status == RoomStatus.Ended || room.status == RoomStatus.Cancelled)
+        if (room.Status == RoomStatus.Ended || room.Status == RoomStatus.Cancelled)
         {
             return BadRequest<bool>("This room is no longer available.");
         }
@@ -219,19 +218,19 @@ public class RoomService : ResponseHandler, IRoomService
                 Id = room.Id,
                 RoomTitle = room.RoomTitle,
                 Description = room.Description,
-                Status = room.status,
+                Status = room.Status,
                 ScheduledStartDate = room.StartDate,
                 IsReminderSetByMe = false,
                 ListenersCount = 0,
                 HostName = room.Host!.FirstName + " " + room.Host.LastName,
             };
 
-            if (room.status == RoomStatus.Live)
+            if (room.Status == RoomStatus.Live)
             {
                 var participants = await _roomRepo.GetRoomParticipantsAsync(room.Id);
                 dto.ListenersCount = participants.Count(p => p.Status == ParticipantStatus.Active);
             }
-            else if (room.status == RoomStatus.Scheduled)
+            else if (room.Status == RoomStatus.Scheduled)
             {
                 var reminder = await _roomRepo.GetRoomReminderAsync(room.Id, currentUserId);
                 dto.IsReminderSetByMe = reminder != null;
@@ -258,13 +257,13 @@ public class RoomService : ResponseHandler, IRoomService
         if (room.HostId != hostId)
             return BadRequest<string>("Only the host can start this room.");
 
-        if (room.status == RoomStatus.Live)
+        if (room.Status == RoomStatus.Live)
             return BadRequest<string>("This room is already live.");
 
-        if (room.status == RoomStatus.Ended || room.status == RoomStatus.Cancelled)
+        if (room.Status == RoomStatus.Ended || room.Status == RoomStatus.Cancelled)
             return BadRequest<string>("This room is no longer available.");
 
-        room.status = RoomStatus.Live;
+        room.Status = RoomStatus.Live;
         await _roomRepo.UpdateAsync(room); 
 
         var hostParticipant = new RoomParticipant
@@ -307,7 +306,7 @@ public class RoomService : ResponseHandler, IRoomService
         var room = await _roomRepo.GetByIdAsync(roomId);
         if (room == null) return NotFound<string>("Room not found.");
 
-        if (room.status != RoomStatus.Scheduled)
+        if (room.Status != RoomStatus.Scheduled)
             return BadRequest<string>("You can only set reminders for scheduled rooms.");
 
         var existingReminder = await _roomRepo.GetRoomReminderAsync(roomId, userId);

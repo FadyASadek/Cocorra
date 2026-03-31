@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL.Data;
+using Cocorra.DAL.Data;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using Microsoft.EntityFrameworkCore;
@@ -34,7 +34,7 @@ namespace Cocorra.DAL.Repository.RoomRepository
         public async Task<List<Room>> GetActiveRoomsAsync()
         {
             return await _dbContext.Rooms
-                .Where(r => r.status == RoomStatus.Live || r.status == RoomStatus.Scheduled)
+                .Where(r => r.Status == RoomStatus.Live || r.Status == RoomStatus.Scheduled)
                 .ToListAsync();
         }
 

@@ -1,4 +1,4 @@
-﻿using Cocorra.DAL.Models;
+using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using System;
 using System.Collections.Generic;
@@ -10,6 +10,6 @@ namespace Cocorra.DAL.Repository.FriendRepository
     {
         Task<FriendRequest?> GetFriendshipRelationAsync(Guid userId1, Guid userId2);
         Task<FriendRequest?> GetPendingRequestAsync(Guid senderId, Guid receiverId);
-        Task<List<ApplicationUser>> GetAcceptedFriendsAsync(Guid userId);
+        Task<List<ApplicationUser>> GetAcceptedFriendsAsync(Guid userId, int page = 1, int pageSize = 20);
     }
 }

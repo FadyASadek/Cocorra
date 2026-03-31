@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.IO;
@@ -90,12 +90,14 @@ namespace Cocorra.BLL.Services.Upload
             {
                 new byte[] { 0xFF, 0xD8, 0xFF }, // JPEG / JPG
                 new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }, // PNG
-                new byte[] { 0x47, 0x49, 0x46, 0x38 } // GIF
+                new byte[] { 0x47, 0x49, 0x46, 0x38 }, // GIF
+                new byte[] { 0x52, 0x49, 0x46, 0x46 } // WEBP (RIFF header)
             };
 
                     // نقرأ أول 8 بايت من الملف (لأن أكبر بصمة لدينا هي PNG وتتكون من 8 بايت)
                     byte[] headerBytes = new byte[8];
-                    stream.Read(headerBytes, 0, headerBytes.Length);
+                    int bytesRead = stream.Read(headerBytes, 0, headerBytes.Length);
+                    if (bytesRead < 4) return false;
 
                     // خطوة مهمة جداً: إعادة المؤشر لبداية الملف حتى يتم حفظه بشكل كامل لاحقاً
                     stream.Position = 0;

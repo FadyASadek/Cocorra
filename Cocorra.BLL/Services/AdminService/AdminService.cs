@@ -1,8 +1,8 @@
-﻿using Cocorra.DAL.DTOS.AdminDto;
+using Cocorra.BLL.Services.Upload;
+using Cocorra.DAL.DTOS.AdminDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
-using Core.Base;
-using Microsoft.AspNetCore.Hosting;
+using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -13,21 +13,24 @@ using System.Threading.Tasks;
 
 namespace Cocorra.BLL.Services.AdminService
 {
-    public class AdminService : ResponseHandler, IAdminService // متنساش تنضف الـ IAdminService برضه
+    public class AdminService : ResponseHandler, IAdminService
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IWebHostEnvironment _env;
+        private readonly IUploadVoice _uploadVoice;
 
-        public AdminService(UserManager<ApplicationUser> userManager, IWebHostEnvironment env)
+        public AdminService(UserManager<ApplicationUser> userManager, IUploadVoice uploadVoice)
         {
             _userManager = userManager;
-            _env = env;
+            _uploadVoice = uploadVoice;
         }
 
         public async Task<Response<string>> ChangeUserStatusAsync(Guid userId, UserStatus newStatus)
         {
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null) return BadRequest<string>("User not found");
+
+            if (!Enum.IsDefined(typeof(UserStatus), newStatus))
+                return BadRequest<string>("Invalid status value.");
 
             if (user.Status == newStatus)
                 return BadRequest<string>($"User is already {newStatus}");
@@ -38,25 +41,28 @@ namespace Cocorra.BLL.Services.AdminService
             {
                 case UserStatus.Active:
                     await _userManager.SetLockoutEndDateAsync(user, null);
-                    if (!string.IsNullOrEmpty(user.VoiceVerificationPath))
-                    {
-                        DeleteVoiceFile(user.VoiceVerificationPath);
-                        user.VoiceVerificationPath = null;
-                    }
+                    _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
+                    user.VoiceVerificationPath = null;
                     break;
 
                 case UserStatus.Banned:
                     await _userManager.SetLockoutEnabledAsync(user, true);
                     await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
-                    if (!string.IsNullOrEmpty(user.VoiceVerificationPath))
-                    {
-                        DeleteVoiceFile(user.VoiceVerificationPath);
-                        user.VoiceVerificationPath = null;
-                    }
+                    _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
+                    user.VoiceVerificationPath = null;
+                    break;
+
+                case UserStatus.Rejected:
+                    _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
+                    user.VoiceVerificationPath = null;
+                    break;
+
+                case UserStatus.ReRecord:
+                    _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
+                    user.VoiceVerificationPath = null;
                     break;
 
                 case UserStatus.Pending:
-                case UserStatus.Rejected:
                     break;
             }
 
@@ -82,7 +88,7 @@ namespace Cocorra.BLL.Services.AdminService
             var totalCount = await query.CountAsync();
 
             var users = await query
-                .OrderByDescending(u => u.Id)
+                .OrderByDescending(u => u.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(u => new UserDto
@@ -93,7 +99,7 @@ namespace Cocorra.BLL.Services.AdminService
                     Age = u.Age,
                     MBTI = u.MBTI ?? "N/A",
                     Status = u.Status.ToString(),
-                    VoicePath = u.VoiceVerificationPath
+                    VoicePath = u.VoiceVerificationPath ?? ""
                 })
                 .ToListAsync();
 
@@ -118,7 +124,7 @@ namespace Cocorra.BLL.Services.AdminService
                 Age = user.Age,
                 MBTI = user.MBTI ?? "N/A",
                 Status = user.Status.ToString(),
-                VoicePath = user.VoiceVerificationPath
+                VoicePath = user.VoiceVerificationPath ?? ""
             };
 
             return Success(userDto);
@@ -126,27 +132,22 @@ namespace Cocorra.BLL.Services.AdminService
 
         public async Task<Response<DashboardStatsDto>> GetDashboardStatsAsync()
         {
+            var statusCounts = await _userManager.Users
+                .GroupBy(u => u.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToListAsync();
+
             var stats = new DashboardStatsDto
             {
-                TotalUsers = await _userManager.Users.CountAsync(),
-                ActiveUsers = await _userManager.Users.CountAsync(u => u.Status == UserStatus.Active),
-                PendingUsers = await _userManager.Users.CountAsync(u => u.Status == UserStatus.Pending),
-                BannedUsers = await _userManager.Users.CountAsync(u => u.Status == UserStatus.Banned),
-                RejectedUsers = await _userManager.Users.CountAsync(u => u.Status == UserStatus.Rejected)
+                TotalUsers = statusCounts.Sum(s => s.Count),
+                ActiveUsers = statusCounts.FirstOrDefault(s => s.Status == UserStatus.Active)?.Count ?? 0,
+                PendingUsers = statusCounts.FirstOrDefault(s => s.Status == UserStatus.Pending)?.Count ?? 0,
+                BannedUsers = statusCounts.FirstOrDefault(s => s.Status == UserStatus.Banned)?.Count ?? 0,
+                RejectedUsers = statusCounts.FirstOrDefault(s => s.Status == UserStatus.Rejected)?.Count ?? 0,
+                ReRecordUsers = statusCounts.FirstOrDefault(s => s.Status == UserStatus.ReRecord)?.Count ?? 0
             };
 
             return Success(stats);
-        }
-
-        private void DeleteVoiceFile(string? relativePath)
-        {
-            if (string.IsNullOrEmpty(relativePath)) return;
-            try
-            {
-                var absolutePath = Path.Combine(_env.WebRootPath, relativePath);
-                if (File.Exists(absolutePath)) File.Delete(absolutePath);
-            }
-            catch (Exception) { }
         }
     }
 }
