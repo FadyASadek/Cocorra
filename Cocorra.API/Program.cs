@@ -73,11 +73,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder =>
         builder
-            //.WithOrigins("https://yourproductiondomain.com", "http://localhost:3000") // TODO: Set specific origins
-            .SetIsOriginAllowed(origin => true) // Replace this with explicit origins in production for security
+            .AllowAnyOrigin()
             .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials());
+            .AllowAnyHeader());
 });
 
 #region AddScopedServices

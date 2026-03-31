@@ -385,5 +385,44 @@ namespace Cocorra.BLL.Services.AuthServices
     </html>
     """;
         }
+
+        public async Task<Response<string>> ReRecordVoiceAsync(Guid userId, Microsoft.AspNetCore.Http.IFormFile voiceFile)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return BadRequest<string>("User not found.");
+
+            if (user.Status != UserStatus.ReRecord)
+                return BadRequest<string>("You can only re-record your voice when your status is 'ReRecord'.");
+
+            _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
+
+            var newVoicePath = await _uploadVoice.SaveVoice(voiceFile);
+            if (newVoicePath.StartsWith("Error"))
+                return BadRequest<string>(newVoicePath);
+
+            user.VoiceVerificationPath = newVoicePath;
+            user.Status = UserStatus.Pending;
+
+            var result = await _userManager.UpdateAsync(user);
+            if (!result.Succeeded)
+                return BadRequest<string>("Failed to update voice verification.");
+
+            return Success("Voice re-recorded successfully. Your account is now pending review.");
+        }
+
+        public async Task<Response<string>> UpdatePasswordAsync(Guid userId, string currentPassword, string newPassword)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return BadRequest<string>("User not found.");
+
+            var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                return BadRequest<string>($"Password update failed: {errors}");
+            }
+
+            return Success("Password updated successfully.");
+        }
     }
 }

@@ -16,5 +16,7 @@ namespace Cocorra.BLL.Services.Auth
         Task<Response<string>> ForgotPasswordAsync(ForgotPasswordDto dto);
         Task<Response<string>> UpdateFcmTokenAsync(Guid userId, string fcmToken);
         Task<Response<string>> ResetPasswordAsync(ResetPasswordDto dto);
+        Task<Response<string>> ReRecordVoiceAsync(Guid userId, Microsoft.AspNetCore.Http.IFormFile voiceFile);
+        Task<Response<string>> UpdatePasswordAsync(Guid userId, string currentPassword, string newPassword);
     }
 }

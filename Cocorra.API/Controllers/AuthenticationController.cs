@@ -4,6 +4,7 @@ using Cocorra.BLL.Services.OTPService;
 using Cocorra.DAL.AppMetaData;
 using Cocorra.DAL.DTOS.Auth;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Security.Claims;
@@ -95,6 +96,33 @@ namespace Cocorra.API.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var result = await _authServices.ResetPasswordAsync(dto);
+            return StatusCode((int)result.StatusCode, result);
+        }
+
+        [Authorize]
+        [HttpPost(Router.AuthenticationRouting.ReRecordVoice)]
+        public async Task<IActionResult> ReRecordVoice(IFormFile voiceFile)
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+
+            if (voiceFile == null || voiceFile.Length == 0)
+                return BadRequest("No voice file uploaded.");
+
+            var result = await _authServices.ReRecordVoiceAsync(userId, voiceFile);
+            return StatusCode((int)result.StatusCode, result);
+        }
+
+        [Authorize]
+        [HttpPut(Router.AuthenticationRouting.UpdatePassword)]
+        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+
+            var result = await _authServices.UpdatePasswordAsync(userId, dto.CurrentPassword, dto.NewPassword);
             return StatusCode((int)result.StatusCode, result);
         }
     }
