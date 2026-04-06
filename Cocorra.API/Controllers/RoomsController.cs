@@ -2,6 +2,7 @@ using Cocorra.BLL.Services.RoomService;
 using Cocorra.DAL.AppMetaData;
 using Cocorra.DAL.DTOS.RoomDto;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Security.Claims;
@@ -10,8 +11,6 @@ using System.Threading.Tasks;
 namespace Cocorra.API.Controllers
 {
     [ApiController]
-    // يفضل تحط Route ثابت للكنترولر عشان ينطبق على كل الـ Endpoints اللي مش واخدة Router
-    [Route("api/[controller]")]
     [Authorize]
     public class RoomsController : ControllerBase
     {
@@ -23,7 +22,7 @@ namespace Cocorra.API.Controllers
         }
 
         [HttpPost(Router.RoomRouting.Create)]
-        public async Task<IActionResult> Create([FromBody] CreateRoomDto dto)
+        public async Task<IActionResult> Create([FromForm] CreateRoomDto dto, IFormFile? roomImage)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -32,7 +31,7 @@ namespace Cocorra.API.Controllers
                 return Unauthorized("User ID is invalid or missing.");
             }
 
-            var result = await _roomService.CreateRoomAsync(dto, hostId);
+            var result = await _roomService.CreateRoomAsync(dto, hostId, roomImage);
 
             if (!result.Succeeded)
                 return BadRequest(result);
@@ -40,7 +39,6 @@ namespace Cocorra.API.Controllers
             return Ok(result);
         }
 
-        // يفضل إن الـ Route في ملف Router يكون "join/{roomId:guid}"
         [HttpPost(Router.RoomRouting.Join)]
         public async Task<IActionResult> Join([FromRoute] Guid roomId)
         {
@@ -111,7 +109,7 @@ namespace Cocorra.API.Controllers
             return StatusCode((int)result.StatusCode, result);
         }
 
-        [HttpPost("{roomId:guid}/start")]
+        [HttpPost(Router.RoomRouting.Start)]
         public async Task<IActionResult> StartScheduledRoom([FromRoute] Guid roomId)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -121,7 +119,7 @@ namespace Cocorra.API.Controllers
             return StatusCode((int)result.StatusCode, result);
         }
 
-        [HttpPost("{roomId:guid}/end")]
+        [HttpPost(Router.RoomRouting.End)]
         public async Task<IActionResult> EndRoom([FromRoute] Guid roomId)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;

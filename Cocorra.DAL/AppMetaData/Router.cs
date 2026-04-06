@@ -49,11 +49,13 @@ namespace Cocorra.DAL.AppMetaData
         {
             public const string Prefix = Rule + "Room";
             public const string Create = Prefix + "/Create";
-            public const string Join = Prefix + "/Join";
+            public const string Join = Prefix + "/Join/{roomId:guid}";
             public const string Approve = Prefix + "/Approve";
             public const string State = Prefix + "/{roomId}/State";
             public const string Feed = Prefix + "/Feed";
             public const string toggleReminder = Prefix + "/{roomId}/toggle-reminder";
+            public const string Start = Prefix + "/{roomId:guid}/Start";
+            public const string End = Prefix + "/{roomId:guid}/End";
         }
     }
 }

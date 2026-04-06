@@ -43,4 +43,7 @@ public class Room : BaseEntity
     public virtual ApplicationUser? Host { get; set; }
     public virtual ICollection<RoomParticipant> Participants { get; set; } = new List<RoomParticipant>();
     public bool IsPrivate { get; set; } = false;
+
+    public string? ImagePath { get; set; }
+    public int DurationHours { get; set; } = 2;
 }

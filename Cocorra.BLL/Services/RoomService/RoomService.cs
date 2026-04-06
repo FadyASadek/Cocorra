@@ -1,31 +1,77 @@
 using Cocorra.BLL.Events;
+using Cocorra.BLL.Services.Upload;
 using Cocorra.DAL.DTOS.RoomDto;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.RoomRepository;
 using Cocorra.BLL.Base;
 using MediatR;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+
 namespace Cocorra.BLL.Services.RoomService;
 
 public class RoomService : ResponseHandler, IRoomService
 {
     private readonly IRoomRepository _roomRepo;
     private readonly IMediator _mediator;
-    public RoomService(IRoomRepository roomRepo, IMediator mediator)
+    private readonly IUploadImage _uploadImage;
+    private readonly string _baseUrl;
+
+    private static readonly HashSet<int> AllowedDurations = new() { 2, 3 };
+
+    public RoomService(IRoomRepository roomRepo, IMediator mediator, IUploadImage uploadImage, IConfiguration configuration)
     {
         _roomRepo = roomRepo;
         _mediator = mediator;
+        _uploadImage = uploadImage;
+        _baseUrl = configuration["AppSettings:BaseUrl"]?.TrimEnd('/') ?? "";
     }
 
-    public async Task<Response<Guid>> CreateRoomAsync(CreateRoomDto dto, Guid hostId)
+    private string? BuildFullUrl(string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return null;
+        return $"{_baseUrl}/{relativePath.Replace("\\", "/").TrimStart('/')}";
+    }
+
+    public async Task<Response<Guid>> CreateRoomAsync(CreateRoomDto dto, Guid hostId, IFormFile? roomImage = null)
     {
         try
         {
+            // Validate duration
+            if (!AllowedDurations.Contains(dto.DurationHours))
+            {
+                return BadRequest<Guid>("Room duration must be exactly 2 or 3 hours.");
+            }
+
             var status = RoomStatus.Live;
             if (dto.ScheduledStartDate.HasValue && dto.ScheduledStartDate > DateTime.UtcNow)
             {
                 status = RoomStatus.Scheduled;
+            }
+
+            // Handle room image upload
+            string? imagePath = null;
+            if (roomImage != null && roomImage.Length > 0)
+            {
+                var savedPath = await _uploadImage.SaveImageAsync(roomImage);
+                if (!savedPath.StartsWith("Error"))
+                {
+                    // Relocate from Profiles subfolder to Rooms subfolder
+                    imagePath = savedPath.Replace("Uploads/img/Profiles/", "Uploads/img/Rooms/");
+                    // Ensure the Rooms directory exists and move the file
+                    var profilesPath = Path.Combine(GetContentPath(), savedPath.Replace("/", Path.DirectorySeparatorChar.ToString()));
+                    var roomsDir = Path.Combine(GetContentPath(), "Uploads", "img", "Rooms");
+                    if (!Directory.Exists(roomsDir)) Directory.CreateDirectory(roomsDir);
+                    var fileName = Path.GetFileName(savedPath);
+                    var roomsFilePath = Path.Combine(roomsDir, fileName);
+                    if (File.Exists(profilesPath))
+                    {
+                        File.Move(profilesPath, roomsFilePath);
+                    }
+                }
             }
 
             var room = new Room
@@ -40,7 +86,9 @@ public class RoomService : ResponseHandler, IRoomService
                 HostId = hostId,
                 StartDate = dto.ScheduledStartDate ?? DateTime.UtcNow,
                 Status = status,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = DateTime.UtcNow,
+                ImagePath = imagePath,
+                DurationHours = dto.DurationHours
             };
 
             if (status == RoomStatus.Live)
@@ -65,6 +113,12 @@ public class RoomService : ResponseHandler, IRoomService
             return BadRequest<Guid>($"Failed to create room: {ex.Message}");
         }
     }
+
+    private string GetContentPath()
+    {
+        return Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+    }
+
     public async Task<Response<bool>> JoinRoomAsync(Guid roomId, Guid userId)
     {
         var room = await _roomRepo.GetByIdAsync(roomId);
@@ -235,7 +289,6 @@ public class RoomService : ResponseHandler, IRoomService
         var userReminders = new HashSet<Guid>();
         if (scheduledRoomIds.Any())
         {
-            // Per-room lookups only for the paginated set (max 20 rooms)
             foreach (var roomId in scheduledRoomIds)
             {
                 reminderCounts[roomId] = await _roomRepo.GetRoomRemindersCountAsync(roomId);
@@ -251,7 +304,11 @@ public class RoomService : ResponseHandler, IRoomService
             Description = room.Description,
             Status = room.Status,
             ScheduledStartDate = room.StartDate,
+            DurationHours = room.DurationHours,
+            HostId = room.HostId,
             HostName = room.Host != null ? $"{room.Host.FirstName} {room.Host.LastName}" : "Unknown",
+            HostProfilePicture = room.Host != null ? BuildFullUrl(room.Host.ProfilePicturePath) : null,
+            RoomImage = BuildFullUrl(room.ImagePath),
             ListenersCount = room.Status == RoomStatus.Live
                 ? (participantCounts.TryGetValue(room.Id, out var c) ? c : 0)
                 : (reminderCounts.TryGetValue(room.Id, out var rc) ? rc : 0),

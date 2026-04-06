@@ -77,12 +77,13 @@ namespace Cocorra.BLL.Services.Upload
             {
                 using (var stream = file.OpenReadStream())
                 {
-                    byte[] headerBytes = new byte[8];
+                    byte[] headerBytes = new byte[12];
                     int bytesRead = stream.Read(headerBytes, 0, headerBytes.Length);
                     stream.Position = 0;
                     
                     if (bytesRead < 2) return false;
 
+                    // MP3, WAV, OGG, raw AAC — fixed-length prefix signatures
                     var signatures = new List<byte[]>
                     {
                         new byte[] { 0x49, 0x44, 0x33 }, // MP3 (ID3)
@@ -91,14 +92,23 @@ namespace Cocorra.BLL.Services.Upload
                         new byte[] { 0xFF, 0xF2 }, // MP3 (MPEG audio frame)
                         new byte[] { 0x52, 0x49, 0x46, 0x46 }, // WAV (RIFF)
                         new byte[] { 0x4F, 0x67, 0x67, 0x53 }, // OGG
-                        new byte[] { 0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41 }, // M4A
-                        new byte[] { 0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41 }, // M4A alt
-                        new byte[] { 0xFF, 0xF1 }, // AAC
-                        new byte[] { 0xFF, 0xF9 }  // AAC alt
+                        new byte[] { 0xFF, 0xF1 }, // AAC (ADTS)
+                        new byte[] { 0xFF, 0xF9 }  // AAC (ADTS alt)
                     };
 
-                    return signatures.Any(signature =>
-                        headerBytes.Take(signature.Length).SequenceEqual(signature));
+                    if (signatures.Any(sig => headerBytes.Take(sig.Length).SequenceEqual(sig)))
+                        return true;
+
+                    // M4A / AAC-in-MP4 container: the "ftyp" marker sits at offset 4
+                    // regardless of the box size byte at offset 0-3 (varies by encoder).
+                    if (bytesRead >= 8)
+                    {
+                        byte[] ftypMarker = { 0x66, 0x74, 0x79, 0x70 }; // "ftyp"
+                        if (headerBytes.Skip(4).Take(4).SequenceEqual(ftypMarker))
+                            return true;
+                    }
+
+                    return false;
                 }
             }
             catch

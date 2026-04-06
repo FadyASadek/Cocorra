@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Cocorra.DAL.DTOS.RoomDto;
 
@@ -11,6 +11,12 @@ public class CreateRoomDto
     public string? Description { get; set; }
 
     public DateTime? ScheduledStartDate { get; set; }
+
+    /// <summary>
+    /// Room duration in hours. Only 2 or 3 are accepted.
+    /// </summary>
+    [Required]
+    public int DurationHours { get; set; } = 2;
 
     public bool IsPrivate { get; set; } = false;
     public int TotalCapacity { get; set; } = 50;
