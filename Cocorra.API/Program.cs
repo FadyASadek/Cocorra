@@ -73,9 +73,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("CorsPolicy", builder =>
         builder
-            .AllowAnyOrigin()
+            .SetIsOriginAllowed(_ => true)
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .AllowCredentials());
 });
 
 #region AddScopedServices
@@ -251,6 +252,7 @@ else
     });
 }
 
+app.UseWebSockets();
 app.UseRateLimiter();
 app.UseCors("CorsPolicy");
 
