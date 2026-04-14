@@ -70,6 +70,8 @@ namespace Cocorra.DAL.AppMetaData
             public const string Prefix = Rule + "Support";
             public const string SubmitTicket = Prefix + "/Ticket"; // POST
             public const string SubmitReport = Prefix + "/Report"; // POST
+            public const string AdminReports = Prefix + "/admin/reports"; // GET
+            public const string AdminUpdateReportStatus = Prefix + "/admin/reports/{id:guid}/status"; // PUT
         }
     }
 }

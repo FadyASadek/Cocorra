@@ -6,6 +6,7 @@ using Cocorra.DAL.Data;
 using Cocorra.DAL.DTOS.Auth;
 using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
+using Cocorra.DAL.Repository.RoomRepository;
 using Cocorra.BLL.Base;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,7 @@ namespace Cocorra.BLL.Services.AuthServices
         private readonly AppDbContext _context;
         private readonly IEmailService _emailService;
         private readonly IUploadImage _uploadImage;
+        private readonly IRoomRepository _roomRepository;
 
         public AuthServices(
             UserManager<ApplicationUser> userManager,
@@ -38,7 +40,8 @@ namespace Cocorra.BLL.Services.AuthServices
             IUploadVoice uploadVoice,
             IEmailService emailService,
             IUploadImage uploadImage,
-            AppDbContext context)
+            AppDbContext context,
+            IRoomRepository roomRepository)
         {
             _uploadImage = uploadImage;
             _context = context;
@@ -47,6 +50,7 @@ namespace Cocorra.BLL.Services.AuthServices
             _roleManager = roleManager;
             _emailService = emailService;
             _configuration = configuration;
+            _roomRepository = roomRepository;
         }
 
         public async Task<Response<string>> RegisterAsync(RegisterDto dto)
@@ -430,16 +434,39 @@ namespace Cocorra.BLL.Services.AuthServices
             var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null) return BadRequest<string>("User not found.");
 
-            // For now, doing a hard delete via UserManager
-            var result = await _userManager.DeleteAsync(user);
-            
-            if (!result.Succeeded)
+            // End any Active/Live rooms hosted by this user to prevent ghost rooms
+            var activeRooms = await _context.Rooms
+                .Where(r => r.HostId == userId &&
+                       (r.Status == RoomStatus.Live || r.Status == RoomStatus.Scheduled))
+                .ToListAsync();
+
+            foreach (var room in activeRooms)
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                return BadRequest<string>($"Account deletion failed: {errors}");
+                room.Status = RoomStatus.Ended;
+                room.UpdatedAt = DateTime.UtcNow;
             }
 
-            return Success("Account deleted successfully.");
+            if (activeRooms.Any())
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            try
+            {
+                var result = await _userManager.DeleteAsync(user);
+
+                if (!result.Succeeded)
+                {
+                    var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                    return BadRequest<string>($"Account deletion failed: {errors}");
+                }
+
+                return Success("Account deleted successfully.");
+            }
+            catch (DbUpdateException)
+            {
+                return BadRequest<string>("Cannot delete account due to pending compliance records.");
+            }
         }
     }
 }

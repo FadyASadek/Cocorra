@@ -251,7 +251,15 @@ else
         {
             context.Response.StatusCode = 500;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync("{\"message\": \"An unexpected internal server error occurred.\", \"succeeded\": false}");
+            var response = new
+            {
+                statusCode = 500,
+                succeeded = false,
+                message = "An unexpected internal server error occurred.",
+                errors = new List<string>(),
+                data = (object?)null
+            };
+            await context.Response.WriteAsJsonAsync(response);
         });
     });
 }
