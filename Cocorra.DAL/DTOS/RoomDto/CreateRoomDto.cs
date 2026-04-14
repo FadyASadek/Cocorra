@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Cocorra.DAL.Enums;
 
 namespace Cocorra.DAL.DTOS.RoomDto;
 
@@ -23,4 +24,7 @@ public class CreateRoomDto
     public int StageCapacity { get; set; } = 5;
     public int DefaultSpeakerDurationMinutes { get; set; } = 5;
     public RoomSelectionMode SelectionMode { get; set; } = RoomSelectionMode.Manual_CoachDecision;
+
+    [Required]
+    public RoomCategory Category { get; set; }
 }

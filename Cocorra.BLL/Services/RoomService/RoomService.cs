@@ -88,7 +88,8 @@ public class RoomService : ResponseHandler, IRoomService
                 Status = status,
                 CreatedAt = DateTime.UtcNow,
                 ImagePath = imagePath,
-                DurationHours = dto.DurationHours
+                DurationHours = dto.DurationHours,
+                Category = dto.Category
             };
 
             if (status == RoomStatus.Live)
@@ -246,6 +247,8 @@ public class RoomService : ResponseHandler, IRoomService
             HostId = room.HostId,
             TotalCapacity = room.TotalCapacity,
             StageCapacity = room.StageCapacity,
+            Category = room.Category,
+            CategoryName = room.Category.ToString(),
             Participants = activeParticipants.Select(p => new ParticipantStateDto
             {
                 UserId = p.UserId,
@@ -261,9 +264,9 @@ public class RoomService : ResponseHandler, IRoomService
         return Success(roomState);
     }
 
-    public async Task<Response<IEnumerable<RoomSummaryDto>>> GetRoomsFeedAsync(Guid currentUserId, int pageNumber = 1, int pageSize = 20)
+    public async Task<Response<IEnumerable<RoomSummaryDto>>> GetRoomsFeedAsync(Guid currentUserId, RoomCategory? categoryId = null, int pageNumber = 1, int pageSize = 20)
     {
-        var activeRooms = await _roomRepo.GetActiveRoomsAsync(pageNumber, pageSize);
+        var activeRooms = await _roomRepo.GetActiveRoomsAsync(categoryId, pageNumber, pageSize);
         if (!activeRooms.Any())
             return Success<IEnumerable<RoomSummaryDto>>(Enumerable.Empty<RoomSummaryDto>());
 
@@ -306,6 +309,8 @@ public class RoomService : ResponseHandler, IRoomService
             Status = room.Status,
             ScheduledStartDate = room.StartDate,
             DurationHours = room.DurationHours,
+            Category = room.Category,
+            CategoryName = room.Category.ToString(),
             HostId = room.HostId,
             HostName = room.Host != null ? $"{room.Host.FirstName} {room.Host.LastName}" : "Unknown",
             HostProfilePicture = room.Host != null ? BuildFullUrl(room.Host.ProfilePicturePath) : null,

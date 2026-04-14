@@ -1,6 +1,7 @@
 using Cocorra.BLL.Services.RoomService;
 using Cocorra.DAL.AppMetaData;
 using Cocorra.DAL.DTOS.RoomDto;
+using Cocorra.DAL.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -87,7 +88,7 @@ namespace Cocorra.API.Controllers
         }
 
         [HttpGet(Router.RoomRouting.Feed)]
-        public async Task<IActionResult> GetRoomsFeed([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetRoomsFeed([FromQuery] RoomCategory? categoryId = null, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 20)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
@@ -95,7 +96,7 @@ namespace Cocorra.API.Controllers
             if (pageSize > 50) pageSize = 50;
             if (pageNumber < 1) pageNumber = 1;
 
-            var result = await _roomService.GetRoomsFeedAsync(userId, pageNumber, pageSize);
+            var result = await _roomService.GetRoomsFeedAsync(userId, categoryId, pageNumber, pageSize);
             return StatusCode((int)result.StatusCode, result);
         }
 

@@ -1,4 +1,5 @@
 using System;
+using Cocorra.DAL.Enums;
 
 namespace Cocorra.DAL.DTOS.RoomDto
 {
@@ -11,6 +12,8 @@ namespace Cocorra.DAL.DTOS.RoomDto
         public RoomStatus Status { get; set; }
         public DateTime? ScheduledStartDate { get; set; }
         public int DurationHours { get; set; }
+        public RoomCategory Category { get; set; }
+        public string CategoryName { get; set; } = string.Empty;
 
         public int ListenersCount { get; set; }
 

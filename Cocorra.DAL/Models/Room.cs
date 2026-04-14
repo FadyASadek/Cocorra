@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
+using Cocorra.DAL.Enums;
+
 namespace Cocorra.DAL.Models;
 
 [Index(nameof(HostId), nameof(Status))]
@@ -46,4 +48,7 @@ public class Room : BaseEntity
 
     public string? ImagePath { get; set; }
     public int DurationHours { get; set; } = 2;
+
+    [Required]
+    public RoomCategory Category { get; set; }
 }

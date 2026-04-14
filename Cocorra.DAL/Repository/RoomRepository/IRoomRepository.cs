@@ -1,3 +1,4 @@
+using Cocorra.DAL.Enums;
 using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.GenericRepository;
 using System;
@@ -21,7 +22,7 @@ namespace Cocorra.DAL.Repository.RoomRepository
         Task RemoveRemindersAsync(IEnumerable<RoomReminder> reminders);
         Task AddNotificationsAsync(IEnumerable<Notification> notifications);
 
-        Task<List<Room>> GetActiveRoomsAsync(int pageNumber = 1, int pageSize = 20); // لنجلب الغرف اللايف والمجدولة بس
+        Task<List<Room>> GetActiveRoomsAsync(RoomCategory? categoryId = null, int pageNumber = 1, int pageSize = 20); // لنجلب الغرف اللايف والمجدولة بس
         Task<RoomReminder?> GetRoomReminderAsync(Guid roomId, Guid userId);
         Task<int> GetRoomRemindersCountAsync(Guid roomId);
         Task AddRoomReminderAsync(RoomReminder reminder);
