@@ -21,6 +21,7 @@ namespace Cocorra.DAL.Data
         public DbSet<Message> Messages { get; set; }
         public DbSet<SupportTicket> SupportTickets { get; set; }
         public DbSet<Report> Reports { get; set; }
+        public DbSet<UserBlock> UserBlocks { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -159,6 +160,21 @@ namespace Cocorra.DAL.Data
                 .WithMany()
                 .HasForeignKey(st => st.UserId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // ============================================================
+            // 6. User Blocks
+            // ============================================================
+            builder.Entity<UserBlock>()
+                .HasOne(ub => ub.Blocker)
+                .WithMany()
+                .HasForeignKey(ub => ub.BlockerId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<UserBlock>()
+                .HasOne(ub => ub.Blocked)
+                .WithMany()
+                .HasForeignKey(ub => ub.BlockedId)
+                .OnDelete(DeleteBehavior.Cascade);
         }   
 
     }

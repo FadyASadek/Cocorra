@@ -50,65 +50,53 @@ namespace Cocorra.DAL.Repository.MessageRepository
                 .Where(m => m.SenderId == senderId && m.ReceiverId == receiverId && !m.IsRead)
                 .ExecuteUpdateAsync(s => s.SetProperty(m => m.IsRead, true));
         }
-        public async Task<List<ChatFriendDto>> GetFriendsChatSummariesAsync(Guid currentUserId, List<ApplicationUser> friends)
+        public async Task<List<ChatFriendDto>> GetRecentChatSummariesAsync(Guid currentUserId)
         {
-            var friendIds = friends.Select(f => f.Id).ToList();
-            if (!friendIds.Any()) return new List<ChatFriendDto>();
-
-            var maxDatesQuery = await _dbContext.Messages
-                .AsNoTracking()
-                .Where(m => (m.SenderId == currentUserId && friendIds.Contains(m.ReceiverId)) ||
-                            (m.ReceiverId == currentUserId && friendIds.Contains(m.SenderId)))
-                .GroupBy(m => m.SenderId == currentUserId ? m.ReceiverId : m.SenderId)
-                .Select(g => new
-                {
-                    FriendId = g.Key,
-                    MaxDate = g.Max(m => m.CreatedAt),
-                    UnreadCount = g.Sum(m => m.ReceiverId == currentUserId && m.SenderId == g.Key && !m.IsRead ? 1 : 0)
-                })
+            var blockedUserIds = await _dbContext.UserBlocks
+                .Where(ub => ub.BlockerId == currentUserId || ub.BlockedId == currentUserId)
+                .Select(ub => ub.BlockerId == currentUserId ? ub.BlockedId : ub.BlockerId)
+                .Distinct()
                 .ToListAsync();
 
-            if (!maxDatesQuery.Any())
-            {
-                return friends.Select(f => new ChatFriendDto
-                {
-                    FriendId = f.Id,
-                    FullName = $"{f.FirstName} {f.LastName}",
-                    ProfilePicturePath = f.ProfilePicturePath ?? "",
-                    LastMessageDate = null,
-                    UnreadCount = 0
-                }).ToList();
-            }
-
-            var maxDatesList = maxDatesQuery.Select(md => md.MaxDate).ToList();
-
-            var latestMessages = await _dbContext.Messages
+            var conversations = await _dbContext.Messages
                 .AsNoTracking()
-                .Where(m => (m.SenderId == currentUserId && friendIds.Contains(m.ReceiverId)) ||
-                            (m.ReceiverId == currentUserId && friendIds.Contains(m.SenderId)))
-                .Where(m => maxDatesList.Contains(m.CreatedAt))
+                .Where(m => m.SenderId == currentUserId || m.ReceiverId == currentUserId)
+                .Where(m => !blockedUserIds.Contains(m.SenderId == currentUserId ? m.ReceiverId : m.SenderId))
                 .Select(m => new
                 {
-                    FriendId = m.SenderId == currentUserId ? m.ReceiverId : m.SenderId,
-                    m.Content,
-                    m.CreatedAt
+                    PartnerId = m.SenderId == currentUserId ? m.ReceiverId : m.SenderId,
+                    Message = m
+                })
+                .GroupBy(x => x.PartnerId)
+                .Select(g => new
+                {
+                    PartnerId = g.Key,
+                    LastMessage = g.OrderByDescending(x => x.Message.CreatedAt).FirstOrDefault().Message,
+                    UnreadCount = g.Count(x => x.Message.ReceiverId == currentUserId && !x.Message.IsRead)
                 })
                 .ToListAsync();
 
-            return friends.Select(f => {
-                var summary = maxDatesQuery.FirstOrDefault(s => s.FriendId == f.Id);
-                var lastMsg = latestMessages.FirstOrDefault(m => m.FriendId == f.Id && m.CreatedAt == summary?.MaxDate);
-                
+            var partnerIds = conversations.Select(c => c.PartnerId).ToList();
+            var partners = await _dbContext.Users
+                .AsNoTracking()
+                .Where(u => partnerIds.Contains(u.Id))
+                .ToDictionaryAsync(u => u.Id, u => new { u.FirstName, u.LastName, u.ProfilePicturePath });
+
+            var dtoList = conversations.Select(c => 
+            {
+                var partnerInfo = partners.GetValueOrDefault(c.PartnerId);
                 return new ChatFriendDto
                 {
-                    FriendId = f.Id,
-                    FullName = $"{f.FirstName} {f.LastName}",
-                    ProfilePicturePath = f.ProfilePicturePath ?? "",
-                    LastMessage = lastMsg?.Content ?? "",
-                    LastMessageDate = summary?.MaxDate,
-                    UnreadCount = summary?.UnreadCount ?? 0
+                    FriendId = c.PartnerId,
+                    FullName = partnerInfo != null ? $"{partnerInfo.FirstName} {partnerInfo.LastName}" : "Unknown User",
+                    ProfilePicturePath = partnerInfo?.ProfilePicturePath ?? "",
+                    LastMessage = c.LastMessage?.Content ?? "",
+                    LastMessageDate = c.LastMessage?.CreatedAt,
+                    UnreadCount = c.UnreadCount
                 };
             }).OrderByDescending(d => d.LastMessageDate ?? DateTime.MinValue).ToList();
+
+            return dtoList;
         }
     }
 }

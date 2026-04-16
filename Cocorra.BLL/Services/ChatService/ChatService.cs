@@ -1,8 +1,8 @@
 using Cocorra.BLL.Services.NotificationService;
 using Cocorra.DAL.DTOS.ChatDto;
 using Cocorra.DAL.Models;
-using Cocorra.DAL.Repository.FriendRepository;
 using Cocorra.DAL.Repository.MessageRepository;
+using Cocorra.DAL.Repository.UserBlockRepository;
 using Cocorra.BLL.Base;
 using MediatR;
 using Microsoft.AspNetCore.Identity;
@@ -16,15 +16,15 @@ namespace Cocorra.BLL.Services.ChatService
 {
     public class ChatService : ResponseHandler, IChatService
     {
-        private readonly IFriendRepository _friendRepo;
+        private readonly IUserBlockRepository _blockRepo;
         private readonly IMessageRepository _messageRepo;
         private readonly IPushNotificationService _pushService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IMediator _mediator; 
 
-        public ChatService(IFriendRepository friendRepo, IMessageRepository messageRepo, IPushNotificationService pushService, UserManager<ApplicationUser> userManager, IMediator mediator)
+        public ChatService(IUserBlockRepository blockRepo, IMessageRepository messageRepo, IPushNotificationService pushService, UserManager<ApplicationUser> userManager, IMediator mediator)
         {
-            _friendRepo = friendRepo;
+            _blockRepo = blockRepo;
             _messageRepo = messageRepo;
             _pushService = pushService;
             _userManager = userManager;
@@ -33,9 +33,8 @@ namespace Cocorra.BLL.Services.ChatService
 
         public async Task<Response<IEnumerable<MessageDto>>> GetChatHistoryAsync(Guid currentUserId, Guid friendId, int pageNumber, int pageSize)
         {
-            var friendship = await _friendRepo.GetFriendshipRelationAsync(currentUserId, friendId);
-            if (friendship == null || friendship.Status != Cocorra.DAL.Enums.FriendRequestStatus.Accepted)
-                return BadRequest<IEnumerable<MessageDto>>("You can only view chat history with confirmed friends.");
+            if (await _blockRepo.IsBlockedAsync(currentUserId, friendId))
+                return BadRequest<IEnumerable<MessageDto>>("You cannot view chat history due to a block.");
 
             var messages = await _messageRepo.GetChatHistoryAsync(currentUserId, friendId, pageNumber, pageSize);
 
@@ -62,9 +61,8 @@ namespace Cocorra.BLL.Services.ChatService
             if (senderId == receiverId)
                 return BadRequest<MessageDto>("You cannot send messages to yourself.");
 
-            var friendship = await _friendRepo.GetFriendshipRelationAsync(senderId, receiverId);
-            if (friendship == null || friendship.Status != Cocorra.DAL.Enums.FriendRequestStatus.Accepted)
-                return BadRequest<MessageDto>("You can only send messages to confirmed friends.");
+            if (await _blockRepo.IsBlockedAsync(senderId, receiverId))
+                return BadRequest<MessageDto>("You cannot send a message due to a block.");
 
             var message = new Message
             {
@@ -100,9 +98,14 @@ namespace Cocorra.BLL.Services.ChatService
 
         public async Task<Response<IEnumerable<ChatFriendDto>>> GetChatFriendsListAsync(Guid currentUserId, int pageNumber = 1, int pageSize = 20)
         {
-            var friends = await _friendRepo.GetAcceptedFriendsAsync(currentUserId, pageNumber, pageSize);
-            var dtoList = await _messageRepo.GetFriendsChatSummariesAsync(currentUserId, friends.ToList());
-            return Success<IEnumerable<ChatFriendDto>>(dtoList);
+            var dtoList = await _messageRepo.GetRecentChatSummariesAsync(currentUserId);
+            
+            var paginatedList = dtoList
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return Success<IEnumerable<ChatFriendDto>>(paginatedList);
         }
 
         public async Task<Response<string>> MarkMessagesAsReadAsync(Guid currentUserId, Guid friendId)

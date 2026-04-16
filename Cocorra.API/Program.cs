@@ -101,6 +101,8 @@ builder.Services.AddScoped<ISupportRepository, SupportRepository>();
 builder.Services.AddScoped<ISupportService, SupportService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<IOTPService, OTPService>();
+builder.Services.AddScoped<Cocorra.DAL.Repository.UserBlockRepository.IUserBlockRepository, Cocorra.DAL.Repository.UserBlockRepository.UserBlockRepository>();
+builder.Services.AddScoped<Cocorra.BLL.Services.BlockService.IBlockService, Cocorra.BLL.Services.BlockService.BlockService>();
 builder.Services.AddScoped(typeof(IGenericRepositoryAsync<>), typeof(GenericRepositoryAsync<>));
 builder.Services.AddMediatR(cfg =>
 {
