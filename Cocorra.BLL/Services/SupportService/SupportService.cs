@@ -12,6 +12,7 @@ using Cocorra.DAL.Models;
 using Cocorra.DAL.Repository.NotificationRepository;
 using Cocorra.DAL.Repository.SupportRepository;
 using Microsoft.AspNetCore.Identity;
+using Cocorra.BLL.Services.NotificationService;
 
 namespace Cocorra.BLL.Services.SupportService
 {
@@ -22,19 +23,22 @@ namespace Cocorra.BLL.Services.SupportService
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly INotificationRepository _notificationRepo;
         private readonly IRealTimeNotifier _realTimeNotifier;
+        private readonly IPushNotificationService _pushService;
 
         public SupportService(
             ISupportRepository supportRepo,
             IUploadImage uploadImage,
             UserManager<ApplicationUser> userManager,
             INotificationRepository notificationRepo,
-            IRealTimeNotifier realTimeNotifier)
+            IRealTimeNotifier realTimeNotifier,
+            IPushNotificationService pushService)
         {
             _supportRepo = supportRepo;
             _uploadImage = uploadImage;
             _userManager = userManager;
             _notificationRepo = notificationRepo;
             _realTimeNotifier = realTimeNotifier;
+            _pushService = pushService;
         }
 
         public async Task<Response<string>> SubmitTicketAsync(Guid? userId, SubmitSupportTicketDto dto)
@@ -154,6 +158,13 @@ namespace Cocorra.BLL.Services.SupportService
                         IsRead = false
                     };
                     await _notificationRepo.AddAsync(warning);
+
+                    var warnUser = await _userManager.FindByIdAsync(report.ReportedUserId.Value.ToString());
+                    if (!string.IsNullOrEmpty(warnUser?.FcmToken))
+                    {
+                        var data = new Dictionary<string, string> { { "type", "report" }, { "reportId", report.Id.ToString() } };
+                        try { await _pushService.SendPushNotificationAsync(warnUser.FcmToken, warning.Title, warning.Message, data); } catch { }
+                    }
 
                     report.Status = "Resolved";
                     break;

@@ -29,7 +29,16 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Initialize Firebase Admin SDK
+FirebaseApp.Create(new AppOptions
+{
+    Credential = GoogleCredential.FromFile("firebase-config.json")
+});
 
 var jwtSettings = builder.Configuration.GetSection("JWTSetting");
 
@@ -97,6 +106,7 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IMessageRepository, MessageRepository>();
 builder.Services.AddScoped<IUploadImage, UploadImage>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<Cocorra.DAL.Repository.UserRepository.IUserRepository, Cocorra.DAL.Repository.UserRepository.UserRepository>();
 builder.Services.AddScoped<ISupportRepository, SupportRepository>();
 builder.Services.AddScoped<ISupportService, SupportService>();
 builder.Services.AddScoped<IEmailService, EmailService>();

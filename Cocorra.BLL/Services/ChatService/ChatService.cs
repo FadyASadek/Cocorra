@@ -89,7 +89,13 @@ namespace Cocorra.BLL.Services.ChatService
             {
                 var sender = await _userManager.FindByIdAsync(senderId.ToString());
                 string senderName = sender != null ? $"{sender.FirstName} {sender.LastName}" : "New Message";
-                await _pushService.SendPushNotificationAsync(receiverId, senderName, content, senderId.ToString());
+                
+                var receiver = await _userManager.FindByIdAsync(receiverId.ToString());
+                if (!string.IsNullOrEmpty(receiver?.FcmToken))
+                {
+                    var data = new Dictionary<string, string> { { "type", "chat" }, { "senderId", senderId.ToString() } };
+                    await _pushService.SendPushNotificationAsync(receiver.FcmToken, senderName, content, data);
+                }
             }
             catch { }
 

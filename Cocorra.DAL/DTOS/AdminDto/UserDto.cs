@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -14,5 +14,6 @@ namespace Cocorra.DAL.DTOS.AdminDto
         public string Status { get; set; } = default!; // Active, Pending, Banned
         public DateTime CreatedAt { get; set; } // لو عندك في الداتابيز، لو مفيش شيلها
         public string? VoicePath { get; set; } // عشان لو عايز تسمع صوته
+        public IList<string> Roles { get; set; } = new List<string>();
     }
 }

@@ -9,6 +9,8 @@ using MediatR;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Cocorra.BLL.Services.NotificationService;
+using Microsoft.AspNetCore.Identity;
 
 namespace Cocorra.BLL.Services.RoomService;
 
@@ -18,15 +20,25 @@ public class RoomService : ResponseHandler, IRoomService
     private readonly IMediator _mediator;
     private readonly IUploadImage _uploadImage;
     private readonly string _baseUrl;
+    private readonly IPushNotificationService _pushService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     private static readonly HashSet<int> AllowedDurations = new() { 2, 3 };
 
-    public RoomService(IRoomRepository roomRepo, IMediator mediator, IUploadImage uploadImage, IConfiguration configuration)
+    public RoomService(
+        IRoomRepository roomRepo, 
+        IMediator mediator, 
+        IUploadImage uploadImage, 
+        IConfiguration configuration,
+        IPushNotificationService pushService,
+        UserManager<ApplicationUser> userManager)
     {
         _roomRepo = roomRepo;
         _mediator = mediator;
         _uploadImage = uploadImage;
         _baseUrl = configuration["AppSettings:BaseUrl"]?.TrimEnd('/') ?? "";
+        _pushService = pushService;
+        _userManager = userManager;
     }
 
     private string? BuildFullUrl(string? relativePath)
@@ -368,6 +380,16 @@ public class RoomService : ResponseHandler, IRoomService
             }).ToList();
 
             await _roomRepo.AddNotificationsAsync(notifications);
+            
+            var data = new Dictionary<string, string> { { "type", "room" }, { "roomId", room.Id.ToString() } };
+            foreach (var r in reminders)
+            {
+                var user = await _userManager.FindByIdAsync(r.UserId.ToString());
+                if (!string.IsNullOrEmpty(user?.FcmToken))
+                {
+                    try { await _pushService.SendPushNotificationAsync(user.FcmToken, "Room Starting Now! 🎙️", $"The room '{room.RoomTitle}' has just started. Join now!", data); } catch { }
+                }
+            }
 
             await _roomRepo.RemoveRemindersAsync(reminders);
         }

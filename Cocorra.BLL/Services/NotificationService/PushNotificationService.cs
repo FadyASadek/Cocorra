@@ -1,15 +1,37 @@
 using System;
 using System.Threading.Tasks;
 
+using FirebaseAdmin.Messaging;
+using System.Collections.Generic;
+
 namespace Cocorra.BLL.Services.NotificationService
 {
     public class PushNotificationService : IPushNotificationService
     {
-        public Task SendPushNotificationAsync(Guid receiverId, string title, string body, string? chatFriendId = null)
+        public async Task SendPushNotificationAsync(string fcmToken, string title, string body, Dictionary<string, string> data)
         {
-            // Push notifications are currently scoped out for future phases.
-            // Keeping stub active to satisfy IPushNotificationService dependencies in BLL without external SDK calls.
-            return Task.CompletedTask;
+            if (string.IsNullOrWhiteSpace(fcmToken)) return;
+
+            var message = new Message()
+            {
+                Token = fcmToken,
+                Notification = new Notification()
+                {
+                    Title = title,
+                    Body = body
+                },
+                Data = data
+            };
+
+            try
+            {
+                await FirebaseMessaging.DefaultInstance.SendAsync(message);
+            }
+            catch (FirebaseMessagingException)
+            {
+                // Optionally log inactive token or mapping issues. 
+                // Swallow so caller doesn't crash on invalid/expired tokens.
+            }
         }
     }
 }

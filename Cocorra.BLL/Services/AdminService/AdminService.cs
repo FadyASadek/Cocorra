@@ -10,8 +10,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
+using Cocorra.DAL.Repository.UserRepository;
 
 namespace Cocorra.BLL.Services.AdminService
 {
@@ -21,13 +20,15 @@ namespace Cocorra.BLL.Services.AdminService
         private readonly IUploadVoice _uploadVoice;
         private readonly IEmailService _emailService;
         private readonly string _baseUrl;
+        private readonly IUserRepository _userRepository;
 
-        public AdminService(UserManager<ApplicationUser> userManager, IUploadVoice uploadVoice, IConfiguration configuration, IEmailService emailService)
+        public AdminService(UserManager<ApplicationUser> userManager, IUploadVoice uploadVoice, IConfiguration configuration, IEmailService emailService, IUserRepository userRepository)
         {
             _userManager = userManager;
             _uploadVoice = uploadVoice;
             _baseUrl = configuration["AppSettings:BaseUrl"]?.TrimEnd('/') ?? "";
             _emailService = emailService;
+            _userRepository = userRepository;
         }
 
         private string? BuildFullUrl(string? relativePath)
@@ -83,12 +84,11 @@ namespace Cocorra.BLL.Services.AdminService
 
             if (result.Succeeded)
             {
-                // Send verification status emails (fire-and-forget, do not block the response)
                 try
                 {
                     await SendVerificationEmailAsync(user, newStatus);
                 }
-                catch { /* Email failures must not block admin actions */ }
+                catch { }
 
                 return Success($"User status changed from {oldStatus} to {newStatus}");
             }
@@ -132,7 +132,6 @@ namespace Cocorra.BLL.Services.AdminService
                         "<br><p>— The Cocorra Team</p>");
                     break;
 
-                // Rejected: silent rejection — no email sent
                 default:
                     break;
             }
@@ -140,48 +139,9 @@ namespace Cocorra.BLL.Services.AdminService
 
         public async Task<Response<IEnumerable<UserDto>>> GetAllUsersAsync(string? search, int page = 1, int pageSize = 10)
         {
-            var query = _userManager.Users.AsNoTracking().AsQueryable();
+            var (totalCount, users) = await _userRepository.GetPaginatedUsersWithRolesAsync(search, page, pageSize, _baseUrl);
 
-            if (!string.IsNullOrEmpty(search))
-            {
-                query = query.Where(u => u.Email!.Contains(search) ||
-                                         u.FirstName!.Contains(search) ||
-                                         u.LastName!.Contains(search));
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var rawUsers = await query
-                .OrderByDescending(u => u.CreatedAt)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .Select(u => new
-                {
-                    u.Id,
-                    u.FirstName,
-                    u.LastName,
-                    u.Email,
-                    u.Age,
-                    u.MBTI,
-                    u.Status,
-                    u.VoiceVerificationPath,
-                    u.CreatedAt
-                })
-                .ToListAsync();
-
-            var users = rawUsers.Select(u => new UserDto
-            {
-                Id = u.Id.ToString(),
-                FullName = $"{u.FirstName} {u.LastName}",
-                Email = u.Email ?? "",
-                Age = u.Age,
-                MBTI = u.MBTI ?? "N/A",
-                Status = u.Status.ToString(),
-                CreatedAt = u.CreatedAt,
-                VoicePath = BuildFullUrl(u.VoiceVerificationPath)
-            }).ToList();
-
-            var response = Success<IEnumerable<UserDto>>(users);
+            var response = Success(users);
             response.Meta = new { TotalCount = totalCount, CurrentPage = page, PageSize = pageSize };
 
             return response;
@@ -194,6 +154,8 @@ namespace Cocorra.BLL.Services.AdminService
             if (user == null)
                 return BadRequest<UserDto>("User not found");
 
+            var roles = await _userManager.GetRolesAsync(user);
+
             var userDto = new UserDto
             {
                 Id = user.Id.ToString(),
@@ -203,7 +165,8 @@ namespace Cocorra.BLL.Services.AdminService
                 MBTI = user.MBTI ?? "N/A",
                 Status = user.Status.ToString(),
                 CreatedAt = user.CreatedAt,
-                VoicePath = BuildFullUrl(user.VoiceVerificationPath)
+                VoicePath = BuildFullUrl(user.VoiceVerificationPath),
+                Roles = roles
             };
 
             return Success(userDto);

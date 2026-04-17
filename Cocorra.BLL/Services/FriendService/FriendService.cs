@@ -116,7 +116,12 @@ namespace Cocorra.BLL.Services.FriendService
 
                 transaction.Commit();
 
-                try { await _pushService.SendPushNotificationAsync(targetUserId, "New Friend Request", notification.Message); } catch { }
+                try 
+                {
+                    if (!string.IsNullOrEmpty(targetUser?.FcmToken))
+                        await _pushService.SendPushNotificationAsync(targetUser.FcmToken, "New Friend Request", notification.Message, new Dictionary<string, string> { { "type", "general" } }); 
+                } 
+                catch { }
 
                 return Success("Friend request sent successfully.");
             }
@@ -161,7 +166,13 @@ namespace Cocorra.BLL.Services.FriendService
                     await _notificationRepo.AddAsync(notification);
                     transaction.Commit();
 
-                    try { await _pushService.SendPushNotificationAsync(senderId, "Friend Request Accepted", notification.Message); } catch { }
+                    try 
+                    { 
+                        var senderUser = await _userManager.FindByIdAsync(senderId.ToString());
+                        if (!string.IsNullOrEmpty(senderUser?.FcmToken))
+                            await _pushService.SendPushNotificationAsync(senderUser.FcmToken, "Friend Request Accepted", notification.Message, new Dictionary<string, string> { { "type", "general" } }); 
+                    } 
+                    catch { }
                 }
                 else
                 {
