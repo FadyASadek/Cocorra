@@ -93,7 +93,7 @@ namespace Cocorra.API.Controllers
 
             var result = await _supportService.SendMessageAsync(userIdString, dto);
             
-            if (result.StatusCode == System.Net.HttpStatusCode.OK)
+            if (result.StatusCode == System.Net.HttpStatusCode.OK && result.Data != null)
             {
                 if (result.Data.IsNewChat)
                 {
@@ -103,7 +103,6 @@ namespace Cocorra.API.Controllers
                 else
                 {
                     // For follow-up Pending messages or Active messages, fire both alerts.
-                    // This covers CR-3 requirement: "For follow-up Pending messages, fire both NewPendingChatAlert (so admins see the queue update) and ReceiveSupportMessage (with the actual content)."
                     await _supportHub.Clients.Group("Admins").SendAsync("NewPendingChatAlert");
                     await _supportHub.Clients.Group("Admins").SendAsync("ReceiveSupportMessage", result.Data.Message);
                 }
@@ -141,7 +140,7 @@ namespace Cocorra.API.Controllers
 
             var result = await _supportService.AdminReplyAsync(chatId, adminIdString, dto);
 
-            if (result.StatusCode == System.Net.HttpStatusCode.OK)
+            if (result.StatusCode == System.Net.HttpStatusCode.OK && result.Data != null)
             {
                 // Notify the specific user based on UserId (CR-2 Option A)
                 await _supportHub.Clients.User(result.Data.UserId).SendAsync("ReceiveSupportMessage", result.Data.Message);
