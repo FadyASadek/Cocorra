@@ -362,9 +362,10 @@ namespace Cocorra.BLL.Services.SupportService
             return Success("Chat closed successfully.");
         }
 
-        public async Task<Response<List<PendingChatDto>>> GetPendingChatsAsync()
+        public async Task<Response<List<PendingChatDto>>> GetPendingChatsAsync(int pageNumber, int pageSize)
         {
-            var chats = await _supportRepo.GetPendingChatsAsync();
+            var totalCount = await _supportRepo.GetPendingChatsCountAsync();
+            var chats = await _supportRepo.GetPendingChatsAsync(pageNumber, pageSize);
             var dtos = chats.Select(c => new PendingChatDto
             {
                 Id = c.Id,
@@ -375,21 +376,41 @@ namespace Cocorra.BLL.Services.SupportService
                 LastMessageContent = c.Messages.OrderByDescending(m => m.CreatedAt).FirstOrDefault()?.Content ?? ""
             }).ToList();
 
-            return Success(dtos);
+            return Success(dtos, meta: new
+            {
+                currentPage = pageNumber,
+                pageSize,
+                totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
         }
 
-        public async Task<Response<List<SupportChatDetailsDto>>> GetAdminActiveChatsAsync(string adminId)
+        public async Task<Response<List<SupportChatDetailsDto>>> GetAdminActiveChatsAsync(string adminId, int pageNumber, int pageSize)
         {
-            var chats = await _supportRepo.GetAdminActiveChatsAsync(adminId);
+            var totalCount = await _supportRepo.GetAdminActiveChatsCountAsync(adminId);
+            var chats = await _supportRepo.GetAdminActiveChatsAsync(adminId, pageNumber, pageSize);
             var dtos = chats.Select(MapToDetailsDto).ToList();
-            return Success(dtos);
+            return Success(dtos, meta: new
+            {
+                currentPage = pageNumber,
+                pageSize,
+                totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
         }
 
-        public async Task<Response<List<SupportChatDetailsDto>>> GetUserChatHistoryAsync(string userId)
+        public async Task<Response<List<SupportChatDetailsDto>>> GetUserChatHistoryAsync(string userId, int pageNumber, int pageSize)
         {
-            var chats = await _supportRepo.GetUserChatHistoryAsync(userId);
+            var totalCount = await _supportRepo.GetUserChatHistoryCountAsync(userId);
+            var chats = await _supportRepo.GetUserChatHistoryAsync(userId, pageNumber, pageSize);
             var dtos = chats.Select(MapToDetailsDto).ToList();
-            return Success(dtos);
+            return Success(dtos, meta: new
+            {
+                currentPage = pageNumber,
+                pageSize,
+                totalCount,
+                totalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
         }
 
         private SupportChatDetailsDto MapToDetailsDto(SupportChat chat)

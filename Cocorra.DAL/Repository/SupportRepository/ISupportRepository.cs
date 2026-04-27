@@ -21,8 +21,11 @@ namespace Cocorra.DAL.Repository.SupportRepository
         Task AddChatAsync(SupportChat chat);
         Task AddMessageAsync(SupportMessage message);
         Task UpdateChatAsync(SupportChat chat);
-        Task<List<SupportChat>> GetPendingChatsAsync();
-        Task<List<SupportChat>> GetAdminActiveChatsAsync(string adminId);
-        Task<List<SupportChat>> GetUserChatHistoryAsync(string userId);
+        Task<List<SupportChat>> GetPendingChatsAsync(int pageNumber, int pageSize);
+        Task<int> GetPendingChatsCountAsync();
+        Task<List<SupportChat>> GetAdminActiveChatsAsync(string adminId, int pageNumber, int pageSize);
+        Task<int> GetAdminActiveChatsCountAsync(string adminId);
+        Task<List<SupportChat>> GetUserChatHistoryAsync(string userId, int pageNumber, int pageSize);
+        Task<int> GetUserChatHistoryCountAsync(string userId);
     }
 }

@@ -113,31 +113,55 @@ namespace Cocorra.DAL.Repository.SupportRepository
             }
         }
 
-        public async Task<List<SupportChat>> GetPendingChatsAsync()
+        public async Task<List<SupportChat>> GetPendingChatsAsync(int pageNumber, int pageSize)
         {
             return await _dbContext.SupportChats
                 .Include(c => c.Messages)
                 .Where(c => c.Status == SupportChatStatus.Pending)
                 .OrderByDescending(c => c.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
-        public async Task<List<SupportChat>> GetAdminActiveChatsAsync(string adminId)
+        public async Task<int> GetPendingChatsCountAsync()
+        {
+            return await _dbContext.SupportChats
+                .CountAsync(c => c.Status == SupportChatStatus.Pending);
+        }
+
+        public async Task<List<SupportChat>> GetAdminActiveChatsAsync(string adminId, int pageNumber, int pageSize)
         {
             return await _dbContext.SupportChats
                 .Include(c => c.Messages)
                 .Where(c => c.AdminId == adminId && c.Status == SupportChatStatus.Active)
                 .OrderByDescending(c => c.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
         }
 
-        public async Task<List<SupportChat>> GetUserChatHistoryAsync(string userId)
+        public async Task<int> GetAdminActiveChatsCountAsync(string adminId)
+        {
+            return await _dbContext.SupportChats
+                .CountAsync(c => c.AdminId == adminId && c.Status == SupportChatStatus.Active);
+        }
+
+        public async Task<List<SupportChat>> GetUserChatHistoryAsync(string userId, int pageNumber, int pageSize)
         {
             return await _dbContext.SupportChats
                 .Include(c => c.Messages)
                 .Where(c => c.UserId == userId && c.Status == SupportChatStatus.Closed)
                 .OrderByDescending(c => c.ClosedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
                 .ToListAsync();
+        }
+
+        public async Task<int> GetUserChatHistoryCountAsync(string userId)
+        {
+            return await _dbContext.SupportChats
+                .CountAsync(c => c.UserId == userId && c.Status == SupportChatStatus.Closed);
         }
     }
 }

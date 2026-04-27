@@ -162,31 +162,40 @@ namespace Cocorra.API.Controllers
 
         [Authorize(Roles = "Admin")]
         [HttpGet(Router.SupportRouting.Prefix + "/chat/pending")]
-        public async Task<IActionResult> GetPendingChats()
+        public async Task<IActionResult> GetPendingChats([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _supportService.GetPendingChatsAsync();
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            var result = await _supportService.GetPendingChatsAsync(pageNumber, pageSize);
             return StatusCode((int)result.StatusCode, result);
         }
 
         [Authorize(Roles = "Admin")]
         [HttpGet(Router.SupportRouting.Prefix + "/chat/active")]
-        public async Task<IActionResult> GetAdminActiveChats()
+        public async Task<IActionResult> GetAdminActiveChats([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var adminIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(adminIdString)) return Unauthorized();
 
-            var result = await _supportService.GetAdminActiveChatsAsync(adminIdString);
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            var result = await _supportService.GetAdminActiveChatsAsync(adminIdString, pageNumber, pageSize);
             return StatusCode((int)result.StatusCode, result);
         }
 
         [Authorize]
         [HttpGet(Router.SupportRouting.Prefix + "/chat/history")]
-        public async Task<IActionResult> GetUserChatHistory()
+        public async Task<IActionResult> GetUserChatHistory([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userIdString)) return Unauthorized();
 
-            var result = await _supportService.GetUserChatHistoryAsync(userIdString);
+            pageNumber = Math.Max(1, pageNumber);
+            pageSize = Math.Clamp(pageSize, 1, 50);
+
+            var result = await _supportService.GetUserChatHistoryAsync(userIdString, pageNumber, pageSize);
             return StatusCode((int)result.StatusCode, result);
         }
     }
