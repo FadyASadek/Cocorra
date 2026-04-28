@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Cocorra.API.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,Coach")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;
@@ -41,6 +41,7 @@ namespace Cocorra.API.Controllers
         }
 
         [HttpPut(Router.AdminRouting.ChangeStatus)]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ChangeStatus(
             [FromRoute] Guid id,
             [FromBody] ChangeStatusDto model
