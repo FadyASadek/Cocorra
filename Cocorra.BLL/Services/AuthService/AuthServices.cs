@@ -129,7 +129,6 @@ namespace Cocorra.BLL.Services.AuthServices
                         Username = user.UserName,
                         Token = new JwtSecurityTokenHandler().WriteToken(restrictedToken),
                         ExpiresOn = restrictedToken.ValidTo,
-                        IsAuthenticated = true,
                         Roles = restrictedRoles.ToList(),
                         RefreshToken = restrictedRefreshToken,
                         RefreshTokenExpiration = user.RefreshTokenExpiryTime
@@ -186,7 +185,6 @@ namespace Cocorra.BLL.Services.AuthServices
                         Username = user.UserName,
                         Token = new JwtSecurityTokenHandler().WriteToken(restrictedToken),
                         ExpiresOn = restrictedToken.ValidTo,
-                        IsAuthenticated = true,
                         Roles = restrictedRoles.ToList(),
                         RefreshToken = restrictedRefreshToken,
                         RefreshTokenExpiration = user.RefreshTokenExpiryTime
@@ -215,7 +213,6 @@ namespace Cocorra.BLL.Services.AuthServices
                 Username = user.UserName,
                 Token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
                 ExpiresOn = jwtToken.ValidTo,
-                IsAuthenticated = true,
                 Roles = roles.ToList(),
                 RefreshToken = refreshToken,
                 RefreshTokenExpiration = user.RefreshTokenExpiryTime
@@ -554,11 +551,21 @@ namespace Cocorra.BLL.Services.AuthServices
 
         public async Task<Response<AuthModel>> RefreshTokenAsync(RefreshTokenDto dto)
         {
-            var user = _userManager.Users.SingleOrDefault(u => u.RefreshToken == dto.RefreshToken);
+            var user = await _userManager.Users
+                .SingleOrDefaultAsync(u => u.RefreshToken == dto.RefreshToken);
 
             if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
             {
-                return BadRequest<AuthModel>("Invalid refresh token");
+                return BadRequest<AuthModel>("Invalid or expired refresh token.");
+            }
+
+            // SECURITY: Prevent banned/locked-out users from silently refreshing tokens.
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                // Invalidate the compromised refresh token.
+                user.RefreshToken = null;
+                await _userManager.UpdateAsync(user);
+                return Forbidden<AuthModel>("Account is locked or banned.", new { lockoutEnd = user.LockoutEnd });
             }
 
             var newAccessToken = await GenerateJwtToken(user);
@@ -578,7 +585,6 @@ namespace Cocorra.BLL.Services.AuthServices
                 RefreshTokenExpiration = user.RefreshTokenExpiryTime,
                 Email = user.Email,
                 Username = user.UserName,
-                IsAuthenticated = true,
                 Roles = roles.ToList(),
                 UserStatus = user.Status.ToString()
             });

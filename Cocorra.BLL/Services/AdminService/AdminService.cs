@@ -69,6 +69,9 @@ namespace Cocorra.BLL.Services.AdminService
                     _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
                     user.VoiceVerificationPath = null;
                     
+                    // SECURITY: Invalidate refresh token to prevent session resurrection.
+                    user.RefreshToken = null;
+                    
                     if (!string.IsNullOrEmpty(user.FcmToken))
                     {
                         var banData = new Dictionary<string, string>
