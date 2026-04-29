@@ -64,9 +64,20 @@ namespace Cocorra.BLL.Services.AdminService
 
                 case UserStatus.Banned:
                     await _userManager.SetLockoutEnabledAsync(user, true);
-                    await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+                    var lockoutEndDate = DateTimeOffset.MaxValue;
+                    await _userManager.SetLockoutEndDateAsync(user, lockoutEndDate);
                     _uploadVoice.DeleteVoice(user.VoiceVerificationPath);
                     user.VoiceVerificationPath = null;
+                    
+                    if (!string.IsNullOrEmpty(user.FcmToken))
+                    {
+                        var banData = new Dictionary<string, string>
+                        {
+                            { "type", "account_locked" },
+                            { "lockout_end", lockoutEndDate.ToString("o") }
+                        };
+                        try { await _pushService.SendPushNotificationAsync(user.FcmToken, "", "", banData); } catch { }
+                    }
                     break;
 
                 case UserStatus.Rejected:

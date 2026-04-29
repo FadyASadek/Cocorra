@@ -140,6 +140,11 @@ namespace Cocorra.BLL.Services.AuthServices
             {
                 return BadRequest<object>("Please confirm your email before logging in.");
             }
+            
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                return Forbidden<object>("Account is locked or banned.", new { lockoutEnd = user.LockoutEnd });
+            }
             switch (user.Status)
             {
                 case UserStatus.Pending:

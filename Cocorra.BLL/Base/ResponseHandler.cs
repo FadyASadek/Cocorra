@@ -38,6 +38,18 @@ namespace Cocorra.BLL.Base
                 Message = message
             };
         }
+
+        public Response<T> Forbidden<T>(string message = "Forbidden", object? meta = null)
+        {
+            return new Response<T>()
+            {
+                StatusCode = HttpStatusCode.Forbidden,
+                Succeeded = false,
+                Message = message,
+                Meta = meta
+            };
+        }
+
         public Response<T> BadRequest<T>(string message, List<string> errors)
         {
             return new Response<T>()
