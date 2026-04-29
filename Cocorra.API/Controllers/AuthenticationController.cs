@@ -140,5 +140,26 @@ namespace Cocorra.API.Controllers
             var result = await _authServices.DeleteAccountAsync(userId);
             return StatusCode((int)result.StatusCode, result);
         }
+        [HttpPost(Router.AuthenticationRouting.RefreshToken)]
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenDto dto)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var result = await _authServices.RefreshTokenAsync(dto);
+            if (!result.Succeeded) return StatusCode((int)result.StatusCode, result);
+
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpPost(Router.AuthenticationRouting.RevokeToken)]
+        public async Task<IActionResult> RevokeToken()
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!Guid.TryParse(userIdString, out Guid userId)) return Unauthorized();
+
+            var result = await _authServices.RevokeTokenAsync(userId);
+            return StatusCode((int)result.StatusCode, result);
+        }
     }
 }

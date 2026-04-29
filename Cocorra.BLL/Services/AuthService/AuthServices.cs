@@ -19,6 +19,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 namespace Cocorra.BLL.Services.AuthServices
 {
@@ -53,7 +54,7 @@ namespace Cocorra.BLL.Services.AuthServices
             _roomRepository = roomRepository;
         }
 
-        public async Task<Response<string>> RegisterAsync(RegisterDto dto)
+        public async Task<Response<object>> RegisterAsync(RegisterDto dto)
         {
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
@@ -66,17 +67,17 @@ namespace Cocorra.BLL.Services.AuthServices
                 {
                     var existingUser = await _userManager.FindByEmailAsync(dto.Email!);
                     if (existingUser is not null)
-                        return BadRequest<string>("Email is already registered");
+                        return BadRequest<object>("Email is already registered");
 
                     var voicePath = await _uploadVoice.SaveVoice(dto.VoiceVerification!);
                     if (voicePath.StartsWith("Error"))
-                        return BadRequest<string>(voicePath);
+                        return BadRequest<object>(voicePath);
                     voicePathToDelete = voicePath;
                     var profilePicturePath = await _uploadImage.SaveImageAsync(dto.ProfilePicture!);
                     if (profilePicturePath.StartsWith("Error"))
                     {
                         _uploadVoice.DeleteVoice(voicePathToDelete);
-                        return BadRequest<string>(profilePicturePath);
+                        return BadRequest<object>(profilePicturePath);
                     }
                     profilePicturePathToDelete = profilePicturePath;
                     var user = new ApplicationUser
@@ -98,7 +99,7 @@ namespace Cocorra.BLL.Services.AuthServices
                     {
                         _uploadVoice.DeleteVoice(voicePathToDelete);
                         var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                        return BadRequest<string>($"Registration failed: {errors}");
+                        return BadRequest<object>($"Registration failed: {errors}");
                     }
 
                     if (!await _roleManager.RoleExistsAsync("User"))
@@ -115,16 +116,35 @@ namespace Cocorra.BLL.Services.AuthServices
                     var fullImagePath = $"{baseUrl}/System/388f7e03b835e6ca1f7c156816047a360bf18efe.png"; 
                     var emailBody = GetOtpHtmlTemplate(user.FirstName!, email: user.Email!, otpCode, fullImagePath);
                     await _emailService.SendEmailAsync(user.Email!, "Registration Received", emailBody);
+                    var restrictedToken = await GenerateJwtToken(user);
+                    var restrictedRoles = await _userManager.GetRolesAsync(user);
+                    var restrictedRefreshToken = GenerateRefreshToken();
+                    user.RefreshToken = restrictedRefreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    await _userManager.UpdateAsync(user);
+
+                    var restrictedAuth = new AuthModel
+                    {
+                        Email = user.Email,
+                        Username = user.UserName,
+                        Token = new JwtSecurityTokenHandler().WriteToken(restrictedToken),
+                        ExpiresOn = restrictedToken.ValidTo,
+                        IsAuthenticated = true,
+                        Roles = restrictedRoles.ToList(),
+                        RefreshToken = restrictedRefreshToken,
+                        RefreshTokenExpiration = user.RefreshTokenExpiryTime
+                    };
+
                     await transaction.CommitAsync();
 
-                    return Created("Registration successful! Check Your Email .");
+                    return Created<object>(restrictedAuth, meta: new { message = "Registration successful! Check Your Email ." });
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
                     _uploadVoice.DeleteVoice(voicePathToDelete);
                     _uploadImage.DeleteImage(profilePicturePathToDelete);
-                    return BadRequest<string>($"Error: {ex.Message} -- Internal: {ex.InnerException?.Message}");
+                    return BadRequest<object>($"Error: {ex.Message} -- Internal: {ex.InnerException?.Message}");
                 }
             });
         }
@@ -155,6 +175,11 @@ namespace Cocorra.BLL.Services.AuthServices
                     // "FullAccess" policy (requires VerificationStatus=Active) and will reject this token.
                     var restrictedToken = await GenerateJwtToken(user);
                     var restrictedRoles = await _userManager.GetRolesAsync(user);
+                    var restrictedRefreshToken = GenerateRefreshToken();
+                    user.RefreshToken = restrictedRefreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    await _userManager.UpdateAsync(user);
+
                     var restrictedAuth = new AuthModel
                     {
                         Email = user.Email,
@@ -162,7 +187,9 @@ namespace Cocorra.BLL.Services.AuthServices
                         Token = new JwtSecurityTokenHandler().WriteToken(restrictedToken),
                         ExpiresOn = restrictedToken.ValidTo,
                         IsAuthenticated = true,
-                        Roles = restrictedRoles.ToList()
+                        Roles = restrictedRoles.ToList(),
+                        RefreshToken = restrictedRefreshToken,
+                        RefreshTokenExpiration = user.RefreshTokenExpiryTime
                     };
                     return Success<object>(restrictedAuth, meta: new { userStatus = user.Status.ToString() });
                 case UserStatus.Rejected:
@@ -177,6 +204,11 @@ namespace Cocorra.BLL.Services.AuthServices
 
             var jwtToken = await GenerateJwtToken(user);
             var roles = await _userManager.GetRolesAsync(user);
+            var refreshToken = GenerateRefreshToken();
+            user.RefreshToken = refreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _userManager.UpdateAsync(user);
+
             var authModel = new AuthModel
             {
                 Email = user.Email,
@@ -184,7 +216,9 @@ namespace Cocorra.BLL.Services.AuthServices
                 Token = new JwtSecurityTokenHandler().WriteToken(jwtToken),
                 ExpiresOn = jwtToken.ValidTo,
                 IsAuthenticated = true,
-                Roles = roles.ToList()
+                Roles = roles.ToList(),
+                RefreshToken = refreshToken,
+                RefreshTokenExpiration = user.RefreshTokenExpiryTime
             };
             return Success<object>(authModel);
         }
@@ -508,6 +542,57 @@ namespace Cocorra.BLL.Services.AuthServices
             {
                 return BadRequest<string>("Cannot delete account due to remaining database references. Please contact support.");
             }
+        }
+
+        private string GenerateRefreshToken()
+        {
+            var randomNumber = new byte[32];
+            using var rng = RandomNumberGenerator.Create();
+            rng.GetBytes(randomNumber);
+            return Convert.ToBase64String(randomNumber);
+        }
+
+        public async Task<Response<AuthModel>> RefreshTokenAsync(RefreshTokenDto dto)
+        {
+            var user = _userManager.Users.SingleOrDefault(u => u.RefreshToken == dto.RefreshToken);
+
+            if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            {
+                return BadRequest<AuthModel>("Invalid refresh token");
+            }
+
+            var newAccessToken = await GenerateJwtToken(user);
+            var newRefreshToken = GenerateRefreshToken();
+
+            user.RefreshToken = newRefreshToken;
+            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+            await _userManager.UpdateAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return Success(new AuthModel
+            {
+                Token = new JwtSecurityTokenHandler().WriteToken(newAccessToken),
+                RefreshToken = newRefreshToken,
+                ExpiresOn = newAccessToken.ValidTo,
+                RefreshTokenExpiration = user.RefreshTokenExpiryTime,
+                Email = user.Email,
+                Username = user.UserName,
+                IsAuthenticated = true,
+                Roles = roles.ToList(),
+                UserStatus = user.Status.ToString()
+            });
+        }
+
+        public async Task<Response<string>> RevokeTokenAsync(Guid userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+            if (user == null) return BadRequest<string>("Invalid user");
+
+            user.RefreshToken = null;
+            await _userManager.UpdateAsync(user);
+
+            return Success<string>("Token revoked successfully");
         }
     }
 }
