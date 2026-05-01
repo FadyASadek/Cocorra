@@ -130,7 +130,8 @@ namespace Cocorra.BLL.Services.AuthServices
                         ExpiresOn = restrictedToken.ValidTo,
                         Roles = restrictedRoles.ToList(),
                         RefreshToken = restrictedRefreshToken,
-                        RefreshTokenExpiration = user.RefreshTokenExpiryTime
+                        RefreshTokenExpiration = user.RefreshTokenExpiryTime,
+                        UserStatus = user.Status.ToString()
                     };
 
                     await transaction.CommitAsync();
@@ -185,7 +186,8 @@ namespace Cocorra.BLL.Services.AuthServices
                         ExpiresOn = restrictedToken.ValidTo,
                         Roles = restrictedRoles.ToList(),
                         RefreshToken = restrictedRefreshToken,
-                        RefreshTokenExpiration = user.RefreshTokenExpiryTime
+                        RefreshTokenExpiration = user.RefreshTokenExpiryTime,
+                        UserStatus = user.Status.ToString()
                     };
                     return Success<object>(restrictedAuth, meta: new { userStatus = user.Status.ToString() });
                 case UserStatus.Rejected:
@@ -212,7 +214,8 @@ namespace Cocorra.BLL.Services.AuthServices
                 ExpiresOn = jwtToken.ValidTo,
                 Roles = roles.ToList(),
                 RefreshToken = refreshToken,
-                RefreshTokenExpiration = user.RefreshTokenExpiryTime
+                RefreshTokenExpiration = user.RefreshTokenExpiryTime,
+                UserStatus = user.Status.ToString()
             };
             return Success<object>(authModel);
         }
